@@ -1,3 +1,5 @@
+[![Tests](https://github.com/pleasedodisturb/palimpsest/actions/workflows/test.yml/badge.svg)](https://github.com/pleasedodisturb/palimpsest/actions/workflows/test.yml)
+
 # Palimpsest
 
 > *pa·limp·sest* · /ˈpalɪm(p)sɛst/ · noun
@@ -74,6 +76,7 @@ Five minutes. That's it. You now have a structured program repo with AI memory, 
 ```
 palimpsest/
 ├── docs/                    # The methodology (10 guides, start here)
+├── example/                 # A fully populated fictional program (see it in action)
 ├── case-study/              # How this was battle-tested at Wolt
 ├── templates/               # TPM document templates (BRD, PRD, etc.)
 ├── agents/                  # AI agent configs (Cursor, Claude Code, Cline)
@@ -90,6 +93,12 @@ palimpsest/
 ├── setup.sh                 # Project bootstrapper
 └── pyproject.toml           # Python package config
 ```
+
+## See It In Action
+
+The [`example/`](example/) directory contains a fully populated fictional program — **Apex Corp's API Platform Migration**. It's a 6-month migration that's 4 months in, currently at risk because the auth team is behind and a partner's security review is stuck in legal limbo.
+
+It has real-looking status docs, a populated backlog, daily digests with honest observations about team dynamics, and a stakeholder update that was drafted from program state. Open it in your AI editor and ask questions — that's the fastest way to understand what Palimpsest actually feels like.
 
 ## The Methodology
 
