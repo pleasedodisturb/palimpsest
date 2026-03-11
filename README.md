@@ -100,6 +100,8 @@ The [`example/`](example/) directory contains a fully populated fictional progra
 
 It has real-looking status docs, a populated backlog, daily digests with honest observations about team dynamics, and a stakeholder update that was drafted from program state. Open it in your AI editor and ask questions — that's the fastest way to understand what Palimpsest actually feels like.
 
+Want the visceral version? Read the [**Before & After**](showcase/before-after.md) — a side-by-side comparison of what running a meeting, writing a stakeholder update, gathering context, and onboarding someone looks like with and without Palimpsest. The meeting example alone covers the 32-step dance of prep, transcription, parsing, Jira tickets, Confluence updates, email drafts, and follow-up reminders that most TPMs do on autopilot and nobody ever writes down. Spoiler: it collapses from 6-8 hours across 3 days to 45 minutes same-day.
+
 ## The Methodology
 
 Ten documents. Read them in order or jump to what you need.
