@@ -87,3 +87,53 @@ anything without a clear owner, and any gaps in coverage.
 **What you get:** A documentation health report with specific action items.
 
 **Why it's useful:** Prevents documentation rot before it becomes a problem.
+
+## 8. The New Stakeholder Appeared (The Full Workflow)
+
+A name you don't recognize just got added to the VP-level Slack channel for your program. Someone important enough to be there, but you have no idea who they are, what they care about, or why they showed up. This happens constantly. Here's what you do:
+
+**Step 1: Recon (private)**
+
+```
+I just saw "Jordan Kessler" added to #apex-platform-migration.
+Search everything we have — org charts, team docs, meeting notes, Slack mentions,
+any prior context. Who is this person? What's their role, what org do they sit in,
+who do they report to, what programs have they been involved in?
+Map their likely dependencies on our program and flag anything we should be aware of.
+
+Add this to my PRIVATE stakeholder map — do NOT add to shared docs yet.
+```
+
+**What you get:** A stakeholder profile with org context, probable interests, and a dependency map — before you've even said hello. This goes into your private notes, not the shared repo. You need to understand the landscape before you make any moves.
+
+**Step 2: Review and integrate**
+
+```
+Review the stakeholder profile for Jordan Kessler against our current stakeholder map.
+Where do they fit? Do they overlap with anyone? Do they change any power dynamics
+or decision-making paths? What's their likely agenda re: our program?
+
+Once I confirm, add them to: the team roster, the stakeholder list,
+and the Slack channel member registry.
+```
+
+**What you get:** A clear picture of how this person changes your stakeholder landscape. Maybe they're the new VP of Platform and your program just got a lot more visible. Maybe they're from a team that depends on your auth migration. Either way, you know before they know you know.
+
+**Step 3: The laser 1:1**
+
+```
+Draft a 1:1 agenda for a 30-minute introductory meeting with Jordan Kessler (VP Platform).
+Make it role-adjacent and program-relevant:
+- What do they need from our program?
+- What context do they need to be effective?
+- Where might we need their support?
+
+Tone: business-savvy but human. Not a status dump — a strategic conversation.
+Schedule it for next week. Include a brief pre-read they can skim in 2 minutes.
+```
+
+**What you get:** A 30-minute meeting that converts from the usual "so tell me about yourself / tell me about the project" ping-pong into a laser-precise conversation grounded in actual program context. You walk in knowing who they are, what they probably care about, and what you need from them.
+
+And if your ADHD kicks in halfway through and you derail into a tangent about how the auth service is like that one time you tried to replace the engine in a car while driving it — that's fine. You have the agenda. You'll land the plane.
+
+**Why it's useful:** Most stakeholder relationships start with 2-3 wasted meetings of context transfer. This compresses that into one well-prepared conversation. By the time you shake hands (or close the Zoom), they think you're the most organized TPM they've ever met. You're not. You just have a palimpsest.
