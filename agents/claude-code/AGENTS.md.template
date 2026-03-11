@@ -1,0 +1,166 @@
+# AGENTS.md
+
+Full agent instructions for Claude Code sessions on this project. This file defines the Memory Bank protocol, git conventions, session continuity rules, and work preservation standards.
+
+## Memory Bank Protocol
+
+### Philosophy
+
+**No chat should ever be forgotten. Blank slate chats are forbidden.**
+
+The Memory Bank is a set of 7 markdown files in `$PROJECT_ROOT/.cursor/memory/` that persist context across sessions. Every session reads them at start and updates them at end.
+
+### Session Start
+
+Before doing ANY work:
+
+1. Read `$PROJECT_ROOT/.cursor/memory/sessionLog.md` — all prior sessions
+2. Read `$PROJECT_ROOT/.cursor/memory/activeContext.md` — current focus
+3. Read `$PROJECT_ROOT/.cursor/memory/progress.md` — recent milestones
+4. Scan these if relevant to the task:
+   - `decisionLog.md` — significant decisions and rationale
+   - `systemPatterns.md` — architecture and integration patterns
+   - `productContext.md` — project overview and goals
+   - `projectPreferences.md` — team norms and tools
+
+5. Register your session in `sessionLog.md`:
+
+```markdown
+## Active Sessions
+
+### Session [YYYY-MM-DD-HH:MM] — Claude Code
+- **Focus**: [What this session will work on]
+- **Started**: [Timestamp]
+```
+
+### During Session
+
+Update Memory Bank files at natural checkpoints. Target: every 10-15 minutes of active work.
+
+**Event-to-file mapping:**
+
+| Event | Update This File |
+|-------|-----------------|
+| Significant decision made | `decisionLog.md` |
+| Architecture or pattern established | `systemPatterns.md` |
+| Work item completed | `progress.md` |
+| Focus shifted or new questions arose | `activeContext.md` |
+| Project scope or goals changed | `productContext.md` |
+| Team preference or workflow changed | `projectPreferences.md` |
+| Any of the above | `sessionLog.md` (add note) |
+
+### Session End
+
+Before ending the session:
+
+1. Update `activeContext.md`:
+   - What was accomplished
+   - Current state of in-progress work
+   - Open questions or blockers
+   - What the next session should focus on
+
+2. Update `progress.md` if milestones moved
+
+3. Move session from Active to History in `sessionLog.md`:
+```markdown
+## Session History
+
+### Session [YYYY-MM-DD-HH:MM] — Claude Code
+- **Focus**: [What this session worked on]
+- **Duration**: [Start] - [End]
+- **Outcome**: [What was accomplished]
+- **Key artifacts**: [Files created or modified]
+```
+
+4. Commit: `memory: update session log and active context`
+5. Push to remote
+
+## Git Commit Protocol
+
+### When to Commit
+
+- After completing a logical unit of work
+- After updating Memory Bank files
+- Before switching context
+- Before ending the session
+- Every 15-20 minutes of active work (minimum)
+
+### Commit Message Format
+
+```
+type: short description
+```
+
+**Types:**
+
+| Type | Use For |
+|------|---------|
+| `docs` | Documentation changes |
+| `feat` | New features or capabilities |
+| `fix` | Bug fixes |
+| `chore` | Maintenance, cleanup, config |
+| `script` | Automation scripts |
+| `memory` | Memory Bank updates only |
+| `wip` | Work in progress (use sparingly) |
+
+### Push Rhythm
+
+- **Mandatory**: Push at session end
+- **Recommended**: Push every 3-5 commits
+- **Never force push.** If push fails: `git pull --no-rebase` then push again
+- If in detached worktree: `git push origin HEAD:main`
+
+## Session Continuity Rules
+
+### No Blank Slate
+
+Every session starts by reading Memory Bank. No exceptions. If the files are empty (first session), fill in `productContext.md` and `projectPreferences.md` as your first action.
+
+### Cross-Agent Awareness
+
+Multiple agents may work on this project. The Memory Bank is the coordination mechanism.
+
+- Check `sessionLog.md` for recent sessions by other agents
+- Address open questions left by other agents in `activeContext.md`
+- Never overwrite another agent's session history — append only
+- Use session log to understand the full timeline, not just your own sessions
+
+### Recovery from Interruption
+
+If a session was interrupted:
+
+1. Check `sessionLog.md` for an active session with no end time
+2. Read `activeContext.md` for where things were left
+3. Continue the work or close out the interrupted session
+4. Add a note: `- **Note**: Recovered from interrupted session [reference]`
+
+## Work Preservation
+
+- **Files over chat.** Program state lives in markdown, not conversation history.
+- **Git is the persistence layer.** If it is not committed, it does not exist.
+- **Memory Bank is the context layer.** If it is not in the Memory Bank, the next session will not know about it.
+- **Standard markdown only.** No emoji headers, no unicode bullets, no fancy formatting.
+
+## Key Files
+
+| File | Role |
+|------|------|
+| `CLAUDE.md` | Entrypoint — points here |
+| `AGENTS.md` | This file — full protocol |
+| `.cursor/memory/` | Memory Bank directory |
+| `docs/PROGRAM_OVERVIEW.md` | Program status and milestones |
+| `docs/DASHBOARD.md` | Current metrics |
+| `docs/CONTEXT_INDEX.md` | Key people, channels, document index |
+| `docs/GUIDELINES.md` | Team communication and process |
+| `scripts/` | Automation scripts |
+
+## What NOT to Do
+
+- Do not start working without reading Memory Bank
+- Do not end a session without updating Memory Bank and committing
+- Do not force push
+- Do not use emoji in headers or unicode bullets in documents
+- Do not reference internal repo paths in external communications (Confluence, Jira, Slack)
+- Do not store credentials in tracked files
+- Do not overwrite another agent's session history
+- Do not skip commits — if it is not committed, it can be lost

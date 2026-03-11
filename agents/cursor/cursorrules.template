@@ -1,0 +1,142 @@
+# Cursor Rules — [YOUR-PROJECT]
+
+You are an AI agent working on a Technical Program Management project using the Program as Code (PAC) methodology. All program artifacts are version-controlled markdown files. You follow the Memory Bank protocol for session continuity.
+
+## Session Start Checklist
+
+Before doing any work, complete every step:
+
+1. [ ] Read `$PROJECT_ROOT/.cursor/memory/sessionLog.md` — all prior sessions
+2. [ ] Read `$PROJECT_ROOT/.cursor/memory/activeContext.md` — current focus and open questions
+3. [ ] Read `$PROJECT_ROOT/.cursor/memory/progress.md` — milestones and recent completions
+4. [ ] Scan `decisionLog.md`, `systemPatterns.md` if relevant to the task
+5. [ ] Register session in `sessionLog.md` under Active Sessions
+6. [ ] Confirm: "Memory Bank loaded. Session registered. Ready to work."
+
+Do NOT skip this. Blank slate sessions waste the user's time.
+
+## Context Boundaries
+
+### Public (tracked in git)
+
+These files are safe to reference, update, and share:
+
+- `docs/context/daily-digests/` — daily summaries
+- `docs/CONTEXT_INDEX.md` — key people, channels, documents
+- `docs/GUIDELINES.md` — team process and communication norms
+- `docs/PROGRAM_OVERVIEW.md` — program status
+- `docs/DASHBOARD.md` — metrics
+
+### Private (gitignored)
+
+These files exist locally but must never be committed or referenced externally:
+
+- `docs/context/transcripts/` — meeting transcripts
+- `docs/context/team-structures/` — org charts and team data
+- `docs/context/slack-digests/` — raw Slack exports
+- `docs/context/private-notes/` — personal notes
+- `.env` files and credential stores
+
+Never reference repo paths in external communications (Confluence, Jira, Slack). Use summaries and artifacts instead.
+
+## Credentials and Tool Priority
+
+### Credentials
+
+- Credentials are stored in `$PROJECT_ROOT/.env` (gitignored)
+- Token files live in `$PROJECT_ROOT/scripts/` (gitignored)
+- Never commit credentials. Never echo them in chat.
+
+### Data Collection Priority
+
+When gathering information, prefer sources in this order:
+
+1. **APIs** (Google, Jira, Confluence) — most reliable, scriptable
+2. **Internal search tools** (e.g., [YOUR-SEARCH-TOOL]) — good for discovery
+3. **Browser / manual lookup** — last resort
+
+### External Integrations
+
+- Confluence: `[YOUR-DOMAIN].atlassian.net/wiki/spaces/[YOUR-SPACE]`
+- Jira: `[YOUR-DOMAIN].atlassian.net` (project: `[YOUR-PROJECT-KEY]`)
+- Slack: `#[YOUR-CHANNEL]`
+- GitHub: `[YOUR-ORG]/[YOUR-REPO]`
+
+## Common Workflows
+
+### Creating a Document
+
+1. Use inverted pyramid structure (TL;DR first, details later)
+2. Standard markdown only (see Document Formatting below)
+3. Commit with type `docs`: `docs: add stakeholder map`
+
+### Running Scripts
+
+```bash
+cd $PROJECT_ROOT
+./venv/bin/python scripts/<script>.py
+```
+
+### Updating Memory Bank
+
+Follow the event-to-file mapping:
+
+| Event | File |
+|-------|------|
+| Decision made | `decisionLog.md` |
+| Architecture changed | `systemPatterns.md` |
+| Work completed | `progress.md` |
+| Focus shifted | `activeContext.md` |
+| Scope changed | `productContext.md` |
+| Preferences changed | `projectPreferences.md` |
+
+### Git Commits
+
+```
+type: short description
+```
+
+Types: `docs`, `feat`, `fix`, `chore`, `script`, `memory`, `wip`
+
+Commit every 15-20 minutes. Push every 3-5 commits. Push at session end (mandatory).
+
+Never force push. If push fails: `git pull --no-rebase` then push.
+
+## Document Formatting Rules
+
+### Standard Markdown Only
+
+| Element | DO | DO NOT |
+|---------|-----|--------|
+| Headers | `# Title`, `## Section` | Emoji prefixes like `[emoji] Title` |
+| Bullets | `- item` | Unicode bullets, arrows, or special characters |
+| Tables | Pipe tables `\| A \| B \|` | Aligned spaces or tab-formatted tables |
+| Dividers | `---` | Unicode lines or box-drawing characters |
+| Emphasis | `**bold**`, `_italic_` | ALL CAPS for emphasis |
+
+### Inverted Pyramid Structure
+
+Every document should follow this order:
+
+1. **TL;DR** — one paragraph summary at the top
+2. **Key details** — the most important information
+3. **Supporting context** — background, history, references
+4. **Appendix** — raw data, full lists, archives
+
+### Writing Style
+
+- Active voice ("The team decided" not "It was decided")
+- Human tone (direct, clear, no corporate jargon)
+- Short paragraphs (3-4 sentences max)
+- Concrete over abstract ("3 of 5 items complete" not "good progress")
+
+## Session End Checklist
+
+Before ending the session:
+
+1. [ ] Update `activeContext.md` with current state, open questions, next focus
+2. [ ] Update `progress.md` if milestones moved
+3. [ ] Move session from Active to History in `sessionLog.md`
+4. [ ] Commit: `memory: update session log and active context`
+5. [ ] Push to remote
+6. [ ] Confirm: "Session closed. Memory Bank updated. Changes pushed."

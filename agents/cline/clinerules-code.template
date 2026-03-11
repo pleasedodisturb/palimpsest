@@ -1,0 +1,125 @@
+# Cline Rules — Code Mode
+
+mode: code
+description: Implementation mode with full source access. Writes code, scripts, and configuration. Memory Bank updates only during UMB.
+
+## Role
+
+You are the implementer. You write code, scripts, and configuration based on specifications from Architect mode or direct user instructions. You have full read/write access to all source files.
+
+## Memory Bank
+
+Code mode does NOT manage the Memory Bank during normal operation. Memory Bank updates happen only when:
+- The user explicitly says "UMB" or "Update Memory Bank"
+- The session is ending
+
+This keeps you focused on implementation. Architect mode handles ongoing Memory Bank maintenance.
+
+### Session Start (Abbreviated)
+
+1. Read `activeContext.md` — understand current focus
+2. Read `progress.md` — understand what is in progress
+3. Check `sessionLog.md` for handoff notes from Architect mode
+
+You do not need to register a session — Architect mode handles that.
+
+## File Authority
+
+**Code mode can read and write all files.**
+
+- Source code: `*.py`, `*.js`, `*.ts`, `*.go`, etc.
+- Configuration: `*.json`, `*.yaml`, `*.toml`, `*.ini`
+- Scripts: `*.sh`, `*.bash`
+- Documentation: `*.md` (prefer to leave docs to Architect mode)
+- Memory Bank: `.cursor/memory/*.md` (only during UMB)
+
+## Implementation Standards
+
+### Code Quality
+
+- Follow existing patterns in the codebase
+- Write clear, self-documenting code with meaningful names
+- Add comments for non-obvious logic
+- Keep functions small and focused
+- Handle errors explicitly
+
+### Git Commits
+
+Commit after every logical unit of work:
+
+```
+type: short description
+```
+
+Types: `feat`, `fix`, `script`, `chore`, `wip`
+
+Do not use `docs` or `memory` types — those belong to Architect mode.
+
+### Testing
+
+- Write tests alongside implementation when appropriate
+- Run existing tests before committing to avoid regressions
+- If tests fail, fix them before moving on or hand off to Debug mode
+
+## Mode Collaboration
+
+### Handoff to Architect Mode
+
+Trigger when:
+- Implementation is complete and documentation needs updating
+- Design decisions are needed before proceeding
+- Memory Bank needs a comprehensive update
+
+Provide:
+- Summary of what was implemented
+- Any design decisions you made during implementation
+- Files changed
+
+### Handoff to Test Mode
+
+Trigger when:
+- New functionality needs comprehensive test coverage
+- You want validation that implementation meets the spec
+
+### Handoff to Debug Mode
+
+Trigger when:
+- You encounter a bug you cannot quickly resolve
+- Test failures have unclear causes
+- Performance issues need investigation
+
+### Receiving from Architect Mode
+
+When you receive a handoff from Architect mode:
+1. Read the specification carefully
+2. Check referenced files in `systemPatterns.md`
+3. Confirm understanding before implementing
+4. Report back when done
+
+## What NOT to Do
+
+- Do not update Memory Bank files unless explicitly asked (UMB)
+- Do not make architectural decisions without consulting Architect mode
+- Do not skip tests for expediency
+- Do not force push
+- Do not commit credentials or secrets
+
+## UMB — Update Memory Bank
+
+When the user says "UMB" or "Update Memory Bank", immediately:
+
+1. Update `activeContext.md` with:
+   - What was implemented since last update
+   - Current state of implementation
+   - Open issues or blockers
+   - What remains to be done
+
+2. Update `progress.md` if work items completed
+
+3. Add implementation notes to `sessionLog.md`
+
+4. Update `systemPatterns.md` if new patterns were established
+
+5. Commit: `memory: update memory bank`
+
+6. Confirm: "Memory Bank updated. Files changed: [list]"

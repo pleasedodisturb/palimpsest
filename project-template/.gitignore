@@ -1,0 +1,51 @@
+# Credentials and secrets
+.env
+.env.*
+*.key
+*.pem
+*.p12
+credentials.json
+token.json
+token_*.json
+*_token.json
+client_secret*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Private context (never commit)
+docs/context/transcripts/
+docs/context/private-notes/
+docs/context/slack-digests/
+docs/context/team-structures/
+
+# Logs and temp files
+*.log
+tmp/
+temp/
+.cache/
+
+# Node (if applicable)
+node_modules/
+package-lock.json
+yarn.lock

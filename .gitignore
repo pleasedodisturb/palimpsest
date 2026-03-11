@@ -1,0 +1,51 @@
+# Credentials and secrets
+.env
+.env.*
+!.env.example
+credentials.json
+token*.json
+*.pem
+*.key
+*-service-account.json
+service-account*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Private context - NEVER commit
+docs/context/transcripts/
+docs/context/private-notes/
+docs/context/slack-digests/
+docs/context/team-structures/
+**/*-Transcript*
+**/*Transcript*
+
+# Logs
+logs/*.log
+
+# State files
+_fetch_progress.json
+run_state.json
+
+# Keep these
+!docs/context/README.md
+!docs/context/daily-digests/
+!scripts/examples/.env.example

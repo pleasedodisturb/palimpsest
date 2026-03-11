@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "palimpsest"
+version = "0.1.0"
+description = "AI-augmented Technical Program Management toolkit"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Vitalik Pavlenko"}
+]
+keywords = ["tpm", "program-management", "ai", "automation", "markdown"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business",
+]
+
+dependencies = [
+    "google-api-python-client>=2.100.0",
+    "google-auth-httplib2>=0.1.1",
+    "google-auth-oauthlib>=1.1.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+pdf = ["PyPDF2>=3.0.0"]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.0.0",
+]
+
+[project.scripts]
+pac = "scripts.core.preflight_check:main"
+
+[project.urls]
+Homepage = "https://github.com/pleasedodisturb/palimpsest"
+Documentation = "https://github.com/pleasedodisturb/palimpsest/tree/main/docs"
+Repository = "https://github.com/pleasedodisturb/palimpsest"
+Issues = "https://github.com/pleasedodisturb/palimpsest/issues"
+
+[tool.setuptools.packages.find]
+include = ["scripts*"]
+
+[tool.pytest.ini_options]
+testpaths = ["scripts/tests"]
+pythonpath = ["scripts"]

@@ -1,0 +1,1 @@
+"""Palimpsest automation toolkit."""

@@ -1,0 +1,46 @@
+# CLAUDE.md
+
+This file is the entrypoint for Claude Code. It tells the agent where to find instructions, what to read first, and what rules are non-negotiable.
+
+## Read Order
+
+Before doing any work, read these files in this order:
+
+1. `$PROJECT_ROOT/AGENTS.md` — Full agent protocol (Memory Bank, git, session continuity)
+2. `$PROJECT_ROOT/.cursor/memory/sessionLog.md` — All prior sessions
+3. `$PROJECT_ROOT/.cursor/memory/activeContext.md` — Current focus and open questions
+4. `$PROJECT_ROOT/.cursor/memory/progress.md` — Milestones and recent completions
+
+## Memory Bank (Summary)
+
+The Memory Bank is a set of 7 markdown files that persist context across sessions. You MUST read them at session start and update them at session end. Full protocol is in `AGENTS.md`.
+
+Files live in: `$PROJECT_ROOT/.cursor/memory/`
+
+## Non-Negotiables
+
+- **No blank slate sessions.** Always read Memory Bank before working.
+- **Register every session.** Add an entry to `sessionLog.md` at start, close it at end.
+- **Commit frequently.** Every 15-20 minutes of active work. Push at session end.
+- **Standard markdown only.** No emoji headers, no unicode bullets. See formatting standards.
+- **Never force push.** If push fails, pull with `--no-rebase` then push again.
+
+## Quick Links
+
+- Agent protocol: `$PROJECT_ROOT/AGENTS.md`
+- Memory Bank: `$PROJECT_ROOT/.cursor/memory/`
+- Program overview: `$PROJECT_ROOT/docs/PROGRAM_OVERVIEW.md`
+- Dashboard: `$PROJECT_ROOT/docs/DASHBOARD.md`
+- Context index: `$PROJECT_ROOT/docs/CONTEXT_INDEX.md`
+- Guidelines: `$PROJECT_ROOT/docs/GUIDELINES.md`
+- Scripts: `$PROJECT_ROOT/scripts/`
+
+## Project-Specific Configuration
+
+<!-- Replace these placeholders with your project's actual values -->
+
+- Project name: `[YOUR-PROJECT]`
+- Confluence space: `[YOUR-CONFLUENCE-SPACE]`
+- Jira project: `[YOUR-JIRA-PROJECT]`
+- Slack channel: `[YOUR-SLACK-CHANNEL]`
+- Primary repo: `[YOUR-ORG]/[YOUR-REPO]`
