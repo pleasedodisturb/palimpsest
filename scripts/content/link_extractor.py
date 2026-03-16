@@ -24,6 +24,12 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 # ---------------------------------------------------------------------------
+# Constants for duplicated literals
+# ---------------------------------------------------------------------------
+
+_TRAILING_PUNCTUATION = ".,;:!?)"
+
+# ---------------------------------------------------------------------------
 # Link categorization
 # ---------------------------------------------------------------------------
 
@@ -72,6 +78,21 @@ _MD_LINK_PATTERN = re.compile(
 )
 
 
+def _make_link_entry(url, title, source_file, category=None):
+    """Build a standard link entry dict."""
+    return {
+        "url": url,
+        "title": title,
+        "source": str(source_file) if source_file else "",
+        "category": category or categorize_link(url),
+    }
+
+
+def _clean_url(raw_url):
+    """Strip common trailing punctuation from a raw URL match."""
+    return raw_url.rstrip(_TRAILING_PUNCTUATION)
+
+
 def extract_from_text(text, source_file=None):
     """Extract URLs from plain text.
 
@@ -86,15 +107,10 @@ def extract_from_text(text, source_file=None):
     seen = set()
 
     for match in _URL_PATTERN.finditer(text):
-        url = match.group(0).rstrip(".,;:!?)")
+        url = _clean_url(match.group(0))
         if url not in seen:
             seen.add(url)
-            links.append({
-                "url": url,
-                "title": "",
-                "source": str(source_file) if source_file else "",
-                "category": categorize_link(url),
-            })
+            links.append(_make_link_entry(url, "", source_file))
 
     return links
 
@@ -117,28 +133,47 @@ def extract_from_markdown(text, source_file=None):
     # Named links first
     for match in _MD_LINK_PATTERN.finditer(text):
         title = match.group(1).strip()
-        url = match.group(2).rstrip(".,;:!?)")
+        url = _clean_url(match.group(2))
         if url not in seen:
             seen.add(url)
-            links.append({
-                "url": url,
-                "title": title,
-                "source": str(source_file) if source_file else "",
-                "category": categorize_link(url),
-            })
+            links.append(_make_link_entry(url, title, source_file))
 
     # Bare URLs
     for match in _URL_PATTERN.finditer(text):
-        url = match.group(0).rstrip(".,;:!?)")
+        url = _clean_url(match.group(0))
         if url not in seen:
             seen.add(url)
-            links.append({
-                "url": url,
-                "title": "",
-                "source": str(source_file) if source_file else "",
-                "category": categorize_link(url),
-            })
+            links.append(_make_link_entry(url, "", source_file))
 
+    return links
+
+
+def _extract_pdf_text_links(reader, pdf_path, seen):
+    """Extract URLs from PDF page text content."""
+    links = []
+    for page in reader.pages:
+        text = page.extract_text() or ""
+        for match in _URL_PATTERN.finditer(text):
+            url = _clean_url(match.group(0))
+            if url not in seen:
+                seen.add(url)
+                links.append(_make_link_entry(url, "", pdf_path))
+    return links
+
+
+def _extract_pdf_annotation_links(reader, pdf_path, seen):
+    """Extract URLs from PDF page annotations (hyperlinks)."""
+    links = []
+    for page in reader.pages:
+        if not page.get("/Annots"):
+            continue
+        for annot in page["/Annots"]:
+            obj = annot.get_object()
+            if obj.get("/A") and obj["/A"].get("/URI"):
+                url = str(obj["/A"]["/URI"])
+                if url not in seen:
+                    seen.add(url)
+                    links.append(_make_link_entry(url, "", pdf_path))
     return links
 
 
@@ -162,42 +197,15 @@ def extract_from_pdf(pdf_path):
             print(f"WARNING: pypdf/PyPDF2 not installed, skipping PDF: {pdf_path}")
             return []
 
-    links = []
-    seen = set()
-
     try:
         reader = PdfReader(str(pdf_path))
-        for page in reader.pages:
-            text = page.extract_text() or ""
-            for match in _URL_PATTERN.finditer(text):
-                url = match.group(0).rstrip(".,;:!?)")
-                if url not in seen:
-                    seen.add(url)
-                    links.append({
-                        "url": url,
-                        "title": "",
-                        "source": str(pdf_path),
-                        "category": categorize_link(url),
-                    })
-
-            # Also check annotations for hyperlinks
-            if page.get("/Annots"):
-                for annot in page["/Annots"]:
-                    obj = annot.get_object()
-                    if obj.get("/A") and obj["/A"].get("/URI"):
-                        url = str(obj["/A"]["/URI"])
-                        if url not in seen:
-                            seen.add(url)
-                            links.append({
-                                "url": url,
-                                "title": "",
-                                "source": str(pdf_path),
-                                "category": categorize_link(url),
-                            })
+        seen = set()
+        links = _extract_pdf_text_links(reader, pdf_path, seen)
+        links.extend(_extract_pdf_annotation_links(reader, pdf_path, seen))
+        return links
     except Exception as e:
         print(f"WARNING: Failed to read PDF {pdf_path}: {e}")
-
-    return links
+        return []
 
 
 def extract_from_json(json_path):
@@ -250,6 +258,13 @@ _FORMAT_MAP = {
     ".htm": "text",
 }
 
+_FORMAT_EXTRACTORS = {
+    "markdown": lambda fp: extract_from_markdown(fp.read_text(encoding="utf-8", errors="replace"), fp),
+    "text": lambda fp: extract_from_text(fp.read_text(encoding="utf-8", errors="replace"), fp),
+    "json": lambda fp: extract_from_json(fp),
+    "pdf": lambda fp: extract_from_pdf(fp),
+}
+
 
 def scan_directory(directory, recursive=True):
     """Scan a directory for files and extract links from each.
@@ -275,21 +290,15 @@ def scan_directory(directory, recursive=True):
 
         suffix = file_path.suffix.lower()
         fmt = _FORMAT_MAP.get(suffix)
-
         if fmt is None:
             continue
 
+        extractor = _FORMAT_EXTRACTORS.get(fmt)
+        if extractor is None:
+            continue
+
         try:
-            if fmt == "markdown":
-                text = file_path.read_text(encoding="utf-8", errors="replace")
-                all_links.extend(extract_from_markdown(text, file_path))
-            elif fmt == "text":
-                text = file_path.read_text(encoding="utf-8", errors="replace")
-                all_links.extend(extract_from_text(text, file_path))
-            elif fmt == "json":
-                all_links.extend(extract_from_json(file_path))
-            elif fmt == "pdf":
-                all_links.extend(extract_from_pdf(file_path))
+            all_links.extend(extractor(file_path))
         except Exception as e:
             print(f"WARNING: Error processing {file_path}: {e}")
 
@@ -300,6 +309,14 @@ def scan_directory(directory, recursive=True):
 # ---------------------------------------------------------------------------
 # Deduplication and output
 # ---------------------------------------------------------------------------
+
+def _merge_link_into(existing, link):
+    """Merge a duplicate link's metadata into an existing entry."""
+    if link.get("source") and link["source"] not in existing.get("sources", []):
+        existing.setdefault("sources", []).append(link["source"])
+    if link.get("title") and not existing.get("title"):
+        existing["title"] = link["title"]
+
 
 def deduplicate_links(links):
     """Deduplicate links by URL, merging sources.
@@ -314,11 +331,7 @@ def deduplicate_links(links):
     for link in links:
         url = link["url"]
         if url in url_map:
-            existing = url_map[url]
-            if link.get("source") and link["source"] not in existing.get("sources", []):
-                existing.setdefault("sources", []).append(link["source"])
-            if link.get("title") and not existing.get("title"):
-                existing["title"] = link["title"]
+            _merge_link_into(url_map[url], link)
         else:
             entry = dict(link)
             if entry.get("source"):
