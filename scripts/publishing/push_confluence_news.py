@@ -25,6 +25,12 @@ from pathlib import Path
 
 import requests
 
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+CONTENT_TYPE_JSON = "application/json"
+DATE_DISPLAY_FORMAT = "%B %d, %Y"
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -126,7 +132,7 @@ def update_page(page_id, title, content, version_number):
         url,
         json=payload,
         auth=(email, token),
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": CONTENT_TYPE_JSON},
         timeout=30,
     )
     resp.raise_for_status()
@@ -155,7 +161,7 @@ def set_agent_marker(page_id):
         url,
         json=payload,
         auth=(email, token),
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": CONTENT_TYPE_JSON},
         timeout=30,
     )
     if resp.status_code == 404:
@@ -164,7 +170,7 @@ def set_agent_marker(page_id):
             post_url,
             json=payload,
             auth=(email, token),
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": CONTENT_TYPE_JSON},
             timeout=30,
         )
 
@@ -184,7 +190,7 @@ def generate_daily_panel(date, items, highlight=None):
     Returns:
         str: Confluence storage format HTML for the panel.
     """
-    formatted_date = datetime.strptime(date, "%Y-%m-%d").strftime("%B %d, %Y")
+    formatted_date = datetime.strptime(date, "%Y-%m-%d").strftime(DATE_DISPLAY_FORMAT)
     panel_type = "info"
 
     header = f"<h3>{formatted_date}</h3>"
@@ -217,7 +223,7 @@ def generate_current_status_section(date, jira_data=None):
     Returns:
         str: Confluence storage format HTML.
     """
-    formatted_date = datetime.strptime(date, "%Y-%m-%d").strftime("%B %d, %Y")
+    formatted_date = datetime.strptime(date, "%Y-%m-%d").strftime(DATE_DISPLAY_FORMAT)
     html = f"<h2>Current Status - {formatted_date}</h2>"
 
     if jira_data:
@@ -258,7 +264,7 @@ def manage_weekly_archive(content, current_date):
     panels_to_archive = []
     for match in matches:
         try:
-            panel_date = datetime.strptime(match.group(1), "%B %d, %Y")
+            panel_date = datetime.strptime(match.group(1), DATE_DISPLAY_FORMAT)
             if panel_date < cutoff:
                 panels_to_archive.append(match.group(1))
         except ValueError:
@@ -339,7 +345,7 @@ def rebuild_updates_page(date, jira_data=None, dry_run=False):
     # Insert new panel at top, status section after
     # Remove old status section if present
     current_content = re.sub(
-        r'<h2>Current Status.*?(?=<ac:structured-macro|<h[12]|$)',
+        r'<h2>Current Status.*?(?:<ac:structured-macro|<h[12]|$)',
         '',
         current_content,
         flags=re.DOTALL,
