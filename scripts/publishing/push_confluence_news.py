@@ -24,6 +24,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import requests
+from urllib.parse import quote
 
 
 # ---------------------------------------------------------------------------
@@ -61,10 +62,26 @@ def get_page_config():
     sys.exit(1)
 
 
+def _validate_domain(domain):
+    """Validate that domain is a clean hostname with no path separators."""
+    if any(c in domain for c in "/?#\\ "):
+        print(f"ERROR: ATLASSIAN_DOMAIN contains invalid characters: {domain!r}")
+        sys.exit(1)
+    return domain
+
+
+def _confluence_api_url(domain, page_id, suffix=""):
+    """Build a Confluence REST API URL with sanitized path segments."""
+    safe_domain = _validate_domain(domain)
+    safe_id = quote(str(page_id), safe="")
+    base = f"https://{safe_domain}/wiki/rest/api/content/{safe_id}"
+    return f"{base}{suffix}" if suffix else base
+
+
 def get_auth():
     """Return (domain, email, token) tuple."""
     return (
-        _require_env("ATLASSIAN_DOMAIN"),
+        _validate_domain(_require_env("ATLASSIAN_DOMAIN")),
         _require_env("ATLASSIAN_EMAIL"),
         _require_env("ATLASSIAN_API_TOKEN"),
     )
@@ -84,7 +101,7 @@ def get_page(page_id):
         dict: Page data with title, version, body.
     """
     domain, email, token = get_auth()
-    url = f"https://{domain}/wiki/rest/api/content/{page_id}"
+    url = _confluence_api_url(domain, page_id)
     params = {"expand": "body.storage,version,metadata.properties"}
 
     resp = requests.get(url, params=params, auth=(email, token), timeout=30)
@@ -107,7 +124,7 @@ def update_page(page_id, title, content, version_number):
         dict: Updated page data.
     """
     domain, email, token = get_auth()
-    url = f"https://{domain}/wiki/rest/api/content/{page_id}"
+    url = _confluence_api_url(domain, page_id)
 
     payload = {
         "id": str(page_id),
@@ -140,7 +157,7 @@ def set_agent_marker(page_id):
         page_id: Confluence page ID.
     """
     domain, email, token = get_auth()
-    url = f"https://{domain}/wiki/rest/api/content/{page_id}/property/pac.agent_marker"
+    url = _confluence_api_url(domain, page_id, "/property/pac.agent_marker")
 
     marker = {
         "agent": "push_confluence_news",
@@ -159,7 +176,7 @@ def set_agent_marker(page_id):
         timeout=30,
     )
     if resp.status_code == 404:
-        post_url = f"https://{domain}/wiki/rest/api/content/{page_id}/property"
+        post_url = _confluence_api_url(domain, page_id, "/property")
         requests.post(
             post_url,
             json=payload,
