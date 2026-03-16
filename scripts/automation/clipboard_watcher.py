@@ -122,7 +122,7 @@ def watch_clipboard(output_dir, prefix="clipboard", min_length=50, interval=2):
         min_length: Minimum character count to trigger save.
         interval: Polling interval in seconds.
     """
-    print(f"Clipboard watcher started")
+    print("Clipboard watcher started")
     print(f"  Output: {output_dir}")
     print(f"  Prefix: {prefix}")
     print(f"  Min length: {min_length}")
