@@ -40,6 +40,9 @@ except Exception:
 SCRIPT_DIR = Path(__file__).resolve().parent
 load_dotenv(SCRIPT_DIR / ".env")
 
+MSG_GOOGLE_API_MISSING = "google api libs missing"
+MSG_GOOGLE_DOCS_TOKEN = "Google Docs token"
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -60,7 +63,7 @@ def print_result(name: str, ok: bool, detail: str = "") -> None:
 def check_google_drive() -> Tuple[bool, str]:
     """Verify the Google Drive read-only token is valid."""
     if not GOOGLE_API_AVAILABLE:
-        return False, "google api libs missing"
+        return False, MSG_GOOGLE_API_MISSING
     token_path = SCRIPT_DIR / "token.json"
     if not token_path.exists():
         return False, "token.json missing"
@@ -85,7 +88,7 @@ def check_google_drive() -> Tuple[bool, str]:
 def check_google_docs_token() -> Tuple[bool, str]:
     """Verify the Google Docs write token is valid."""
     if not GOOGLE_API_AVAILABLE:
-        return False, "google api libs missing"
+        return False, MSG_GOOGLE_API_MISSING
     token_path = SCRIPT_DIR / "token_docs.json"
     if not token_path.exists():
         return False, "token_docs.json missing"
@@ -241,7 +244,7 @@ def ensure_env_symlink() -> Tuple[bool, str]:
 def attempt_google_token(token_path: Path, scopes: list) -> Tuple[bool, str]:
     """Try to create a Google token via the OAuth flow."""
     if not GOOGLE_API_AVAILABLE:
-        return False, "google api libs missing"
+        return False, MSG_GOOGLE_API_MISSING
 
     creds_path = SCRIPT_DIR / "credentials.json"
     if not creds_path.exists():
@@ -281,17 +284,17 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    checks = []
-    if args.service in ("all", "google_drive"):
-        checks.append(("Google Drive", check_google_drive))
-    if args.service in ("all", "google_docs"):
-        checks.append(("Google Docs token", check_google_docs_token))
-    if args.service in ("all", "atlassian"):
-        checks.append(("Atlassian", check_atlassian))
-    if args.service in ("all", "slack"):
-        checks.append(("Slack", check_slack))
-    if args.service in ("all", "glean"):
-        checks.append(("Glean", check_glean))
+    check_registry = {
+        "google_drive": ("Google Drive", check_google_drive),
+        "google_docs": (MSG_GOOGLE_DOCS_TOKEN, check_google_docs_token),
+        "atlassian": ("Atlassian", check_atlassian),
+        "slack": ("Slack", check_slack),
+        "glean": ("Glean", check_glean),
+    }
+    if args.service == "all":
+        checks = list(check_registry.values())
+    else:
+        checks = [check_registry[args.service]]
 
     failures = 0
     print("Preflight Access Check")
@@ -321,7 +324,7 @@ def main() -> int:
             )
             fix_actions.append(("Google Drive token", ok, detail))
 
-        if "Google Docs token" in failed_names:
+        if MSG_GOOGLE_DOCS_TOKEN in failed_names:
             ok, detail = attempt_google_token(
                 SCRIPT_DIR / "token_docs.json",
                 [
@@ -329,7 +332,7 @@ def main() -> int:
                     "https://www.googleapis.com/auth/documents",
                 ],
             )
-            fix_actions.append(("Google Docs token", ok, detail))
+            fix_actions.append((MSG_GOOGLE_DOCS_TOKEN, ok, detail))
 
         for name, ok, detail in fix_actions:
             print_result(f"{name} fix", ok, detail)

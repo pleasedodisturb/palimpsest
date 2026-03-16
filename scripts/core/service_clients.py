@@ -496,18 +496,15 @@ class GleanClient:
         page_size: int = 10,
         app: Optional[str] = None,
         workspace: Optional[str] = None,
-        channel: Optional[str] = None,
-        owner: Optional[str] = None,
-        from_: Optional[str] = None,
-        updated: Optional[str] = None,
-        after: Optional[str] = None,
-        before: Optional[str] = None,
-        doc_type: Optional[str] = None,
-        dynamic_filters: Optional[str] = None,
-        raw_filters: Optional[str] = None,
         slack_domain: Optional[str] = None,
+        **filters,
     ) -> List[Dict]:
-        """Search Glean with optional filters."""
+        """Search Glean with optional filters.
+
+        Keyword args are forwarded to ``build_query`` — supported keys:
+        channel, owner, from_, updated, after, before, doc_type,
+        dynamic_filters, raw_filters.
+        """
         if app == "slack" and not workspace:
             workspace = self.default_workspace
 
@@ -515,15 +512,7 @@ class GleanClient:
             base_query=query,
             app=app,
             workspace=workspace,
-            channel=channel,
-            owner=owner,
-            from_=from_,
-            updated=updated,
-            after=after,
-            before=before,
-            doc_type=doc_type,
-            dynamic_filters=dynamic_filters,
-            raw_filters=raw_filters,
+            **filters,
         )
 
         result = self._request('search', query=built_query, pageSize=page_size)
