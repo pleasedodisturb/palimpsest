@@ -42,7 +42,7 @@ def _require_env(name):
 
 def _validate_domain(domain):
     """Validate that domain is a clean hostname with no path separators."""
-    if any(c in domain for c in "/?#\\ "):
+    if any(c in domain for c in "/?#\\ @:"):
         print(f"ERROR: ATLASSIAN_DOMAIN contains invalid characters: {domain!r}")
         sys.exit(1)
     return domain
@@ -354,7 +354,7 @@ def push_weekly_update(week_info, context=None, dry_run=False):
     set_agent_marker(page_id)
 
     domain = _require_env("ATLASSIAN_DOMAIN")
-    print(f"Updated: https://{domain}/wiki/pages/viewpage.action?pageId={page_id}")
+    print(f"Updated: https://{domain}/wiki/pages/viewpage.action?pageId={quote(str(page_id), safe='')}")
     return updated_content
 
 
