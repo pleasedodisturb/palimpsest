@@ -2,7 +2,7 @@
 
 ## Phases
 
-- [ ] **Phase 1: Package Foundation** - Restructure the repo so all content ships as package data and scripts remain installable
+- [x] **Phase 1: Package Foundation** - Restructure the repo so all content ships as package data and scripts remain installable (completed 2026-03-17)
 - [ ] **Phase 2: CLI and Install** - Build the single-command install experience with standalone distribution
 - [ ] **Phase 3: Editor Detection** - Runtime detection of AI editors and multi-editor config generation
 - [ ] **Phase 4: Guided Setup** - Interactive post-install wizard that configures program context
@@ -69,7 +69,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Package Foundation | 0/1 | Planning complete | - |
+| 1. Package Foundation | 1/1 | Complete   | 2026-03-17 |
 | 2. CLI and Install | 0/? | Not started | - |
 | 3. Editor Detection | 0/? | Not started | - |
 | 4. Guided Setup | 0/? | Not started | - |

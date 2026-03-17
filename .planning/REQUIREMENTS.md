@@ -49,8 +49,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PKG-01 | Phase 1 | Pending |
-| PKG-02 | Phase 1 | Pending |
+| PKG-01 | Phase 1 | Complete |
+| PKG-02 | Phase 1 | Complete |
 | INST-01 | Phase 2 | Pending |
 | INST-02 | Phase 2 | Pending |
 | DETECT-01 | Phase 3 | Pending |
