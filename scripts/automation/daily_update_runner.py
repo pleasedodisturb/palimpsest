@@ -24,19 +24,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = SCRIPT_DIR.parent
 RUN_STATE_PATH = SCRIPT_DIR / ".run_state.json"
 
 
 def _validate_path(env_value: str, description: str) -> Path:
     """Resolve a path from an environment variable and ensure no traversal."""
     resolved = Path(env_value).resolve()
-    # Must stay within the project tree
+    # Must stay within the project root
     try:
-        resolved.relative_to(SCRIPT_DIR)
+        resolved.relative_to(PROJECT_ROOT)
     except ValueError:
         raise ValueError(
             f"{description} resolves to {resolved}, "
-            f"which is outside the project tree ({SCRIPT_DIR})"
+            f"which is outside the project root ({PROJECT_ROOT})"
         )
     return resolved
 
