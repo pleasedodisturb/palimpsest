@@ -362,7 +362,7 @@ def rebuild_updates_page(date, jira_data=None, dry_run=False):
     # Insert new panel at top, status section after
     # Remove old status section if present
     current_content = re.sub(
-        r'<h2>Current Status.*?(?=<ac:structured-macro|<h[12]|$)',
+        r'<h2>Current Status.*?(?=<ac:structured-macro|<h[12]|$)',  # NOSONAR — .*? with lookahead is correct here
         '',
         current_content,
         flags=re.DOTALL,
