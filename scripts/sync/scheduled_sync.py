@@ -154,7 +154,7 @@ def run_link_extractor() -> bool:
         return True
     except Exception as e:
         log(f"Link extraction failed: {e}", "WARN")
-        return True  # Non-fatal
+        return False
 
 
 def _run_drive_keyword_search() -> bool:
@@ -171,7 +171,7 @@ def _run_drive_keyword_search() -> bool:
         return True
     except Exception as e:
         log(f"Drive keyword search failed: {e}", "WARN")
-        return True  # Non-fatal
+        return False
 
 
 def build_registry() -> bool:
@@ -382,9 +382,8 @@ def main():
         run_link_extractor()  # Non-fatal
 
     # Step 1.4: Build registry
-    if not args.skip_drive:
-        if not build_registry():
-            success = False
+    if not args.skip_drive and not build_registry():
+        success = False
 
     # ========================================
     # PHASE 2: PUSH TO CONFLUENCE
