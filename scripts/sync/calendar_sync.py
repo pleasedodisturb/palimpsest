@@ -24,7 +24,7 @@ import sys
 import json
 import shutil
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -135,9 +135,9 @@ def fetch_events(
         return []
 
     cal_id = calendar_id or CALENDAR_ID
-    now = datetime.utcnow()
-    time_min = now.isoformat() + 'Z'
-    time_max = (now + timedelta(days=days_ahead)).isoformat() + 'Z'
+    now = datetime.now(timezone.utc)
+    time_min = now.isoformat()
+    time_max = (now + timedelta(days=days_ahead)).isoformat()
 
     try:
         events_result = service.events().list(

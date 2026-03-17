@@ -45,6 +45,10 @@ except ImportError:
     print("[WARN] Google API libraries not installed. Run:")
     print("       pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib")
 
+# Constants for duplicated literals
+DRIVE_READONLY_SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+GOOGLE_APPS_MIME_PREFIX = 'application/vnd.google-apps.'
+
 # Configuration from environment
 DRIVE_FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID")
 
@@ -95,7 +99,7 @@ def get_credentials() -> Optional[object]:
     if sa_file and os.path.exists(sa_file):
         return service_account.Credentials.from_service_account_file(
             sa_file,
-            scopes=['https://www.googleapis.com/auth/drive.readonly'],
+            scopes=DRIVE_READONLY_SCOPES,
         )
 
     # Option 2: Service Account JSON from env var
@@ -104,7 +108,7 @@ def get_credentials() -> Optional[object]:
         sa_info = json.loads(sa_json)
         return service_account.Credentials.from_service_account_info(
             sa_info,
-            scopes=['https://www.googleapis.com/auth/drive.readonly'],
+            scopes=DRIVE_READONLY_SCOPES,
         )
 
     # Option 3: OAuth token file
@@ -125,7 +129,7 @@ def get_credentials() -> Optional[object]:
         from google_auth_oauthlib.flow import InstalledAppFlow
         flow = InstalledAppFlow.from_client_secrets_file(
             oauth_file,
-            scopes=['https://www.googleapis.com/auth/drive.readonly'],
+            scopes=DRIVE_READONLY_SCOPES,
         )
         creds = flow.run_local_server(port=0)
 
@@ -136,6 +140,24 @@ def get_credentials() -> Optional[object]:
         return creds
 
     return None
+
+
+def _resolve_shortcut(service, shortcut_file: Dict) -> Optional[Dict]:
+    """Resolve a Drive shortcut to its target file metadata."""
+    shortcut_details = shortcut_file.get('shortcutDetails', {})
+    target_id = shortcut_details.get('targetId')
+    if not target_id:
+        return None
+    try:
+        target = service.files().get(
+            fileId=target_id,
+            fields='id, name, mimeType, createdTime, modifiedTime, size, webViewLink',
+        ).execute()
+        target['originalName'] = shortcut_file.get('name')
+        return target
+    except Exception as e:
+        print(f"  [WARN] Could not resolve shortcut: {shortcut_file.get('name')} - {e}")
+        return None
 
 
 def list_files(service, folder_id: str) -> List[Dict]:
@@ -155,20 +177,10 @@ def list_files(service, folder_id: str) -> List[Dict]:
         ).execute()
 
         for f in response.get('files', []):
-            # Resolve shortcuts to their target files
-            if f.get('mimeType') == 'application/vnd.google-apps.shortcut':
-                shortcut_details = f.get('shortcutDetails', {})
-                target_id = shortcut_details.get('targetId')
-                if target_id:
-                    try:
-                        target = service.files().get(
-                            fileId=target_id,
-                            fields='id, name, mimeType, createdTime, modifiedTime, size, webViewLink',
-                        ).execute()
-                        target['originalName'] = f.get('name')
-                        files.append(target)
-                    except Exception as e:
-                        print(f"  [WARN] Could not resolve shortcut: {f.get('name')} - {e}")
+            if f.get('mimeType') == (GOOGLE_APPS_MIME_PREFIX + 'shortcut'):
+                resolved = _resolve_shortcut(service, f)
+                if resolved:
+                    files.append(resolved)
             else:
                 files.append(f)
 
@@ -191,6 +203,43 @@ def _build_keyword_query(keywords: list, include_trashed: bool) -> str:
     if combined:
         return f"trashed=false and ({combined})"
     return "trashed=false"
+
+
+def _collect_keyword_results(
+    service,
+    keyword: str,
+    base_params: dict,
+    include_trashed: bool,
+    files_by_id: Dict[str, Dict],
+    max_results: int,
+) -> None:
+    """Paginate through search results for a single keyword and merge into files_by_id."""
+    page_token = None
+    query = _build_keyword_query([keyword], include_trashed)
+    list_params = dict(base_params)
+    list_params["q"] = query
+
+    while True:
+        response = service.files().list(
+            pageToken=page_token, **list_params,
+        ).execute()
+
+        for f in response.get("files", []):
+            file_id = f.get("id")
+            if not file_id:
+                continue
+            existing = files_by_id.get(file_id)
+            if existing:
+                existing["matched_keywords"] = sorted(
+                    set(existing.get("matched_keywords", []) + [keyword])
+                )
+            else:
+                f["matched_keywords"] = [keyword]
+                files_by_id[file_id] = f
+
+        page_token = response.get("nextPageToken")
+        if not page_token or len(files_by_id) >= max_results:
+            break
 
 
 def search_drive_files(
@@ -223,32 +272,9 @@ def search_drive_files(
         })
 
     for keyword in keywords:
-        page_token = None
-        query = _build_keyword_query([keyword], include_trashed)
-        list_params = dict(base_params)
-        list_params["q"] = query
-
-        while True:
-            response = service.files().list(
-                pageToken=page_token, **list_params,
-            ).execute()
-            for f in response.get("files", []):
-                file_id = f.get("id")
-                if not file_id:
-                    continue
-                existing = files_by_id.get(file_id)
-                if existing:
-                    existing["matched_keywords"] = sorted(
-                        set(existing.get("matched_keywords", []) + [keyword])
-                    )
-                else:
-                    f["matched_keywords"] = [keyword]
-                    files_by_id[file_id] = f
-
-            page_token = response.get("nextPageToken")
-            if not page_token or len(files_by_id) >= max_results:
-                break
-
+        _collect_keyword_results(
+            service, keyword, base_params, include_trashed, files_by_id, max_results,
+        )
         if len(files_by_id) >= max_results:
             break
 
@@ -306,24 +332,24 @@ def download_file(service, file_id: str, file_name: str, destination: Path) -> b
 def export_google_doc(service, file_id: str, file_name: str, destination: Path, mime_type: str) -> bool:
     """Export a Google Doc/Sheet/Slides to a downloadable format."""
     export_formats = {
-        'application/vnd.google-apps.document': (
+        GOOGLE_APPS_MIME_PREFIX + 'document': (
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.docx',
         ),
-        'application/vnd.google-apps.spreadsheet': (
+        GOOGLE_APPS_MIME_PREFIX + 'spreadsheet': (
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xlsx',
         ),
-        'application/vnd.google-apps.presentation': ('application/pdf', '.pdf'),
-        'application/vnd.google-apps.drawing': ('application/pdf', '.pdf'),
-        'application/vnd.google-apps.jam': ('application/pdf', '.pdf'),
+        GOOGLE_APPS_MIME_PREFIX + 'presentation': ('application/pdf', '.pdf'),
+        GOOGLE_APPS_MIME_PREFIX + 'drawing': ('application/pdf', '.pdf'),
+        GOOGLE_APPS_MIME_PREFIX + 'jam': ('application/pdf', '.pdf'),
     }
 
     skip_types = [
-        'application/vnd.google-apps.shortcut',
-        'application/vnd.google-apps.folder',
-        'application/vnd.google-apps.form',
-        'application/vnd.google-apps.map',
-        'application/vnd.google-apps.site',
-        'application/vnd.google-apps.script',
+        GOOGLE_APPS_MIME_PREFIX + 'shortcut',
+        GOOGLE_APPS_MIME_PREFIX + 'folder',
+        GOOGLE_APPS_MIME_PREFIX + 'form',
+        GOOGLE_APPS_MIME_PREFIX + 'map',
+        GOOGLE_APPS_MIME_PREFIX + 'site',
+        GOOGLE_APPS_MIME_PREFIX + 'script',
     ]
 
     if mime_type in skip_types:
@@ -449,6 +475,49 @@ def update_registry() -> None:
     print("Registry update complete")
 
 
+def _display_categorized_files(files: List[Dict]) -> None:
+    """Display files grouped by category."""
+    categorized: Dict[str, List[Dict]] = {}
+    for f in files:
+        cat = categorize_file(f.get("name", ""))
+        categorized.setdefault(cat, []).append(f)
+
+    for category, cat_files in sorted(categorized.items()):
+        print(f"[{category.title()}] ({len(cat_files)} files)")
+        for f in cat_files:
+            size = f.get("size", "N/A")
+            if size != "N/A":
+                size = f"{int(size) / 1024:.1f} KB"
+            print(f"  - {f.get('name')} ({size})")
+        print()
+
+
+def _download_all_files(service, files: List[Dict], dest_dir: Path) -> tuple:
+    """Download or export all files and return (downloaded, skipped) counts."""
+    downloaded = 0
+    skipped = 0
+
+    for f in files:
+        file_name = f.get("name")
+        file_id = f.get("id")
+        mime_type = f.get("mimeType")
+
+        print(f"  -> {file_name}...", end=" ")
+
+        if mime_type.startswith(GOOGLE_APPS_MIME_PREFIX):
+            success = export_google_doc(service, file_id, file_name, dest_dir / file_name, mime_type)
+        else:
+            success = download_file(service, file_id, file_name, dest_dir / file_name)
+
+        if success:
+            downloaded += 1
+            print("[OK]")
+        else:
+            skipped += 1
+
+    return downloaded, skipped
+
+
 def sync_files(list_only: bool = False, create_snapshot: bool = False) -> None:
     """Main sync function."""
     if not GOOGLE_API_AVAILABLE:
@@ -461,7 +530,7 @@ def sync_files(list_only: bool = False, create_snapshot: bool = False) -> None:
         sys.exit(1)
 
     folder_url = f"https://drive.google.com/drive/folders/{DRIVE_FOLDER_ID}"
-    print(f"Connecting to Google Drive...")
+    print("Connecting to Google Drive...")
     print(f"  Source: {folder_url}")
     print()
 
@@ -485,21 +554,7 @@ def sync_files(list_only: bool = False, create_snapshot: bool = False) -> None:
     print(f"  Found {len(files)} files")
     print()
 
-    # Categorize files
-    categorized: Dict[str, List[Dict]] = {}
-    for f in files:
-        cat = categorize_file(f.get("name", ""))
-        categorized.setdefault(cat, []).append(f)
-
-    # Display files
-    for category, cat_files in sorted(categorized.items()):
-        print(f"[{category.title()}] ({len(cat_files)} files)")
-        for f in cat_files:
-            size = f.get("size", "N/A")
-            if size != "N/A":
-                size = f"{int(size) / 1024:.1f} KB"
-            print(f"  - {f.get('name')} ({size})")
-        print()
+    _display_categorized_files(files)
 
     if list_only:
         return
@@ -516,29 +571,7 @@ def sync_files(list_only: bool = False, create_snapshot: bool = False) -> None:
     print(f"Downloading to: {dest_dir}")
     print()
 
-    downloaded = 0
-    skipped = 0
-
-    for f in files:
-        file_name = f.get("name")
-        file_id = f.get("id")
-        mime_type = f.get("mimeType")
-
-        print(f"  -> {file_name}...", end=" ")
-
-        if mime_type.startswith("application/vnd.google-apps"):
-            if export_google_doc(service, file_id, file_name, dest_dir / file_name, mime_type):
-                downloaded += 1
-                print("[OK]")
-            else:
-                skipped += 1
-        else:
-            if download_file(service, file_id, file_name, dest_dir / file_name):
-                downloaded += 1
-                print("[OK]")
-            else:
-                skipped += 1
-
+    downloaded, skipped = _download_all_files(service, files, dest_dir)
     print(f"\nDownloaded: {downloaded}, Skipped: {skipped}")
 
     # Create manifest
