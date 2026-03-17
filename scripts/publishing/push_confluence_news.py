@@ -64,7 +64,7 @@ def get_page_config():
 
 def _validate_domain(domain):
     """Validate that domain is a clean hostname with no path separators."""
-    if any(c in domain for c in "/?#\\ "):
+    if any(c in domain for c in "/?#\\ @:"):
         print(f"ERROR: ATLASSIAN_DOMAIN contains invalid characters: {domain!r}")
         sys.exit(1)
     return domain
@@ -376,7 +376,8 @@ def rebuild_updates_page(date, jira_data=None, dry_run=False):
     # Update page
     update_page(page_id, title, updated_content, version)
     set_agent_marker(page_id)
-    print(f"Page updated: https://{_require_env('ATLASSIAN_DOMAIN')}/wiki/pages/viewpage.action?pageId={page_id}")
+    domain = get_auth()[0]
+    print(f"Page updated: https://{domain}/wiki/pages/viewpage.action?pageId={quote(str(page_id), safe='')}")
 
     return updated_content
 
