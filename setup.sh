@@ -23,7 +23,8 @@ SEPARATOR='-------------------------------------------'
 info() { local msg="$1"; echo -e "${BLUE}>${NC} ${msg}"; return 0; }
 success() { local msg="$1"; echo -e "${GREEN}+${NC} ${msg}"; return 0; }
 warn() { local msg="$1"; echo -e "${YELLOW}!${NC} ${msg}"; return 0; }
-error() { local msg="$1"; echo -e "${RED}x${NC} ${msg}"; exit 1; }
+# shellcheck disable=SC2317 -- exit 1 terminates; return is unreachable but satisfies linters
+error() { local msg="$1"; echo -e "${RED}x${NC} ${msg}"; exit 1; return 1; }
 
 # Defaults
 WITH_GLEAN=false

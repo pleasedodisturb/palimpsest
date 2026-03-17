@@ -240,7 +240,7 @@ def append_archive_log(mode, results):
     if not log_path:
         return
 
-    path = _validate_path(log_path, "PAC_ARCHIVE_LOG")
+    path = _validate_path(log_path, "PAC_ARCHIVE_LOG")  # NOSONAR — validated via resolve() + relative_to()
     path.parent.mkdir(parents=True, exist_ok=True)
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
