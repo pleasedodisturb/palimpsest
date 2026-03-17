@@ -63,7 +63,7 @@ def test_process_inline_formatting_plain(load_module):
 
 def test_process_inline_formatting_bold(load_module):
     mod = load_module("content/upload_to_docs.py")
-    reqs, end_idx = mod.process_inline_formatting("**bold**", 1)
+    reqs, _ = mod.process_inline_formatting("**bold**", 1)
     # Should have insertText + updateTextStyle
     insert_reqs = [r for r in reqs if "insertText" in r]
     style_reqs = [r for r in reqs if "updateTextStyle" in r]
