@@ -24,23 +24,25 @@ classifiers = [
     "Topic :: Office/Business",
 ]
 
-dependencies = [
+dependencies = []
+
+[project.optional-dependencies]
+scripts = [
     "google-api-python-client>=2.100.0",
     "google-auth-httplib2>=0.1.1",
     "google-auth-oauthlib>=1.1.0",
     "requests>=2.31.0",
     "python-dotenv>=1.0.0",
 ]
-
-[project.optional-dependencies]
 pdf = ["PyPDF2>=3.0.0"]
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.0.0",
 ]
+all = ["palimpsest[scripts,pdf]"]
 
 [project.scripts]
-pac = "scripts.core.preflight_check:main"
+pac = "palimpsest.scripts.core.preflight_check:main"
 
 [project.urls]
 Homepage = "https://github.com/pleasedodisturb/palimpsest"
@@ -49,8 +51,17 @@ Repository = "https://github.com/pleasedodisturb/palimpsest"
 Issues = "https://github.com/pleasedodisturb/palimpsest/issues"
 
 [tool.setuptools.packages.find]
-include = ["scripts*"]
+include = ["palimpsest*"]
+
+[tool.setuptools.package-data]
+"palimpsest" = [
+    "**/*.md",
+    "**/*.template",
+    "**/*.mdc",
+    "**/*.json",
+    "**/*.gitignore",
+]
 
 [tool.pytest.ini_options]
-testpaths = ["scripts/tests"]
-pythonpath = ["scripts"]
+testpaths = ["palimpsest/scripts/tests"]
+pythonpath = ["palimpsest/scripts"]
