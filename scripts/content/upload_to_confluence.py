@@ -138,6 +138,55 @@ def _collect_list_items(lines, i, pattern):
     return items, i
 
 
+def _convert_heading(line):
+    """Convert a heading line to Confluence HTML, or return None."""
+    heading_match = _HEADING_RE.match(line)
+    if not heading_match:
+        return None
+    level = len(heading_match.group(1))
+    text = _inline(heading_match.group(2))
+    return f"<h{level}>{text}</h{level}>"
+
+
+def _convert_checkbox(line):
+    """Convert a checkbox line to Confluence HTML, or return None."""
+    checkbox_match = _CHECKBOX_RE.match(line)
+    if not checkbox_match:
+        return None
+    checked = checkbox_match.group(1).lower() == "x"
+    text = _inline(checkbox_match.group(2))
+    icon = "(/)" if checked else "(x)"
+    return f"<p>{icon} {text}</p>"
+
+
+def _convert_list_block(lines, i, pattern, tag):
+    """Convert a bullet or numbered list block to Confluence HTML.
+
+    Returns:
+        tuple: (html_string, new_line_index)
+    """
+    items, i = _collect_list_items(lines, i, pattern)
+    html = f"<{tag}>" + "".join(f"<li>{it}</li>" for it in items) + f"</{tag}>"
+    return html, i
+
+
+def _convert_single_line(line):
+    """Try to convert a single-line block element (blockquote, hr, paragraph).
+
+    Returns:
+        str or None: HTML string, or None if the line is empty.
+    """
+    stripped = line.strip()
+    if stripped.startswith(">"):
+        text = _inline(re.sub(r"^>\s?", "", stripped))
+        return f"<blockquote><p>{text}</p></blockquote>"
+    if _HORIZONTAL_RULE_RE.match(stripped):
+        return "<hr/>"
+    if stripped:
+        return f"<p>{_inline(stripped)}</p>"
+    return None
+
+
 def markdown_to_confluence(markdown_text):
     """Convert markdown text to Confluence storage format (XHTML).
 
@@ -157,70 +206,44 @@ def markdown_to_confluence(markdown_text):
     while i < len(lines):
         line = lines[i]
 
-        # Code block
+        # Multi-line blocks (code, table, lists) advance i themselves
         if line.strip().startswith(_CODE_FENCE):
             html, i = _convert_code_block(lines, i)
             html_parts.append(html)
             continue
 
-        # Table
         if line.strip().startswith("|"):
             html, i = _convert_table_block(lines, i)
             html_parts.append(html)
             continue
 
-        # Heading
-        heading_match = _HEADING_RE.match(line)
-        if heading_match:
-            level = len(heading_match.group(1))
-            text = _inline(heading_match.group(2))
-            html_parts.append(f"<h{level}>{text}</h{level}>")
+        # Checkboxes before bullets — `- [x]` matches both patterns
+        checkbox = _convert_checkbox(line)
+        if checkbox:
+            html_parts.append(checkbox)
             i += 1
             continue
 
-        # Checkbox
-        checkbox_match = _CHECKBOX_RE.match(line)
-        if checkbox_match:
-            checked = checkbox_match.group(1).lower() == "x"
-            text = _inline(checkbox_match.group(2))
-            icon = "(/)" if checked else "(x)"
-            html_parts.append(f"<p>{icon} {text}</p>")
-            i += 1
-            continue
-
-        # Bullet list
         if _BULLET_RE.match(line):
-            items, i = _collect_list_items(lines, i, _BULLET_RE)
-            html_parts.append(
-                "<ul>" + "".join(f"<li>{it}</li>" for it in items) + "</ul>"
-            )
+            html, i = _convert_list_block(lines, i, _BULLET_RE, "ul")
+            html_parts.append(html)
             continue
 
-        # Numbered list
         if _NUMBERED_RE.match(line):
-            items, i = _collect_list_items(lines, i, _NUMBERED_RE)
-            html_parts.append(
-                "<ol>" + "".join(f"<li>{it}</li>" for it in items) + "</ol>"
-            )
+            html, i = _convert_list_block(lines, i, _NUMBERED_RE, "ol")
+            html_parts.append(html)
             continue
 
-        # Blockquote
-        if line.strip().startswith(">"):
-            text = _inline(re.sub(r"^>\s?", "", line.strip()))
-            html_parts.append(f"<blockquote><p>{text}</p></blockquote>")
+        # Single-line block elements
+        heading = _convert_heading(line)
+        if heading:
+            html_parts.append(heading)
             i += 1
             continue
 
-        # Horizontal rule
-        if _HORIZONTAL_RULE_RE.match(line.strip()):
-            html_parts.append("<hr/>")
-            i += 1
-            continue
-
-        # Paragraph
-        stripped = line.strip()
-        if stripped:
-            html_parts.append(f"<p>{_inline(stripped)}</p>")
+        result = _convert_single_line(line)
+        if result:
+            html_parts.append(result)
 
         i += 1
 
