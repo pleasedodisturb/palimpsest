@@ -54,71 +54,87 @@ CREDENTIALS_FILE = SCRIPT_DIR / "credentials.json"
 TOKEN_FILE = SCRIPT_DIR / "token.json"
 
 
+def _load_existing_token():
+    """Load and validate an existing token file, or return None."""
+    if not TOKEN_FILE.exists():
+        return None
+
+    print(f"Found existing token: {TOKEN_FILE}")
+    creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
+
+    if creds and creds.scopes:
+        missing_scopes = set(SCOPES) - set(creds.scopes)
+        if missing_scopes:
+            print(f"Token missing scopes: {missing_scopes}")
+            print("Will re-authenticate to get all scopes...")
+            return None
+
+    return creds
+
+
+def _refresh_token(creds):
+    """Attempt to refresh expired credentials, return None on failure."""
+    if not (creds and creds.expired and creds.refresh_token):
+        return creds
+    print("Refreshing expired token...")
+    try:
+        creds.refresh(Request())
+        return creds
+    except Exception as e:
+        print(f"Refresh failed: {e}")
+        return None
+
+
+def _run_oauth_flow():
+    """Run the interactive OAuth flow and save the token."""
+    if not CREDENTIALS_FILE.exists():
+        print(f"Missing credentials file: {CREDENTIALS_FILE}")
+        print()
+        print("To get credentials:")
+        print("1. Go to https://console.cloud.google.com/apis/credentials")
+        print("2. Create OAuth 2.0 Client ID (Desktop app)")
+        print("3. Download JSON and save as 'credentials.json'")
+        return None
+
+    print("Starting OAuth flow...")
+    print("A browser window will open for authentication.")
+    print(f"Requesting {len(SCOPES)} scopes:")
+    for scope in SCOPES:
+        print(f"  - {scope.split('/')[-1]}")
+    print()
+
+    flow = InstalledAppFlow.from_client_secrets_file(
+        str(CREDENTIALS_FILE),
+        SCOPES,
+    )
+
+    creds = flow.run_local_server(
+        port=0,
+        prompt='consent',
+        access_type='offline',
+    )
+
+    # Save token via temp file
+    token_data = creds.to_json()
+    temp_path = SCRIPT_DIR / "token_temp.json"
+    with open(str(temp_path), 'w') as f:
+        f.write(token_data)
+    shutil.move(str(temp_path), str(TOKEN_FILE))
+    print(f"Token saved to: {TOKEN_FILE}")
+
+    return creds
+
+
 def authenticate():
     """Run OAuth flow and save token.
 
     Returns valid ``Credentials`` or *None* on failure.
     """
-    creds = None
+    creds = _load_existing_token()
+    creds = _refresh_token(creds)
 
-    # Check for existing token
-    if TOKEN_FILE.exists():
-        print(f"Found existing token: {TOKEN_FILE}")
-        creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
-
-        # Re-auth if scopes are missing
-        if creds and creds.scopes:
-            missing_scopes = set(SCOPES) - set(creds.scopes)
-            if missing_scopes:
-                print(f"Token missing scopes: {missing_scopes}")
-                print("Will re-authenticate to get all scopes...")
-                creds = None
-
-    # Refresh if expired
-    if creds and creds.expired and creds.refresh_token:
-        print("Refreshing expired token...")
-        try:
-            creds.refresh(Request())
-        except Exception as e:
-            print(f"Refresh failed: {e}")
-            creds = None
-
-    # Run OAuth flow if needed
     if not creds or not creds.valid:
-        if not CREDENTIALS_FILE.exists():
-            print(f"Missing credentials file: {CREDENTIALS_FILE}")
-            print()
-            print("To get credentials:")
-            print("1. Go to https://console.cloud.google.com/apis/credentials")
-            print("2. Create OAuth 2.0 Client ID (Desktop app)")
-            print("3. Download JSON and save as 'credentials.json'")
-            return None
-
-        print("Starting OAuth flow...")
-        print("A browser window will open for authentication.")
-        print(f"Requesting {len(SCOPES)} scopes:")
-        for scope in SCOPES:
-            print(f"  - {scope.split('/')[-1]}")
-        print()
-
-        flow = InstalledAppFlow.from_client_secrets_file(
-            str(CREDENTIALS_FILE),
-            SCOPES,
-        )
-
-        creds = flow.run_local_server(
-            port=0,
-            prompt='consent',
-            access_type='offline',
-        )
-
-        # Save token via temp file
-        token_data = creds.to_json()
-        temp_path = SCRIPT_DIR / "token_temp.json"
-        with open(str(temp_path), 'w') as f:
-            f.write(token_data)
-        shutil.move(str(temp_path), str(TOKEN_FILE))
-        print(f"Token saved to: {TOKEN_FILE}")
+        creds = _run_oauth_flow()
 
     return creds
 
