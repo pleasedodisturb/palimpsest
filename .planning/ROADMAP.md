@@ -18,7 +18,9 @@
   1. Running `pip install palimpsest` installs the full package including all methodology docs, templates, agent configs, playbooks, and case study as accessible package data
   2. A user can import and run any existing Python automation script after installing with optional extras (e.g., `pip install palimpsest[scripts]`)
   3. Existing tests pass against the restructured package layout without modification to test logic
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 01-01-PLAN.md -- Restructure repo into palimpsest/ package with content as package data and scripts as optional extras
 
 ### Phase 2: CLI and Install
 **Goal**: A user can run a single command to drop the full AI-TPM capability into any project directory
@@ -67,11 +69,11 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Package Foundation | 0/? | Not started | - |
+| 1. Package Foundation | 0/1 | Planning complete | - |
 | 2. CLI and Install | 0/? | Not started | - |
 | 3. Editor Detection | 0/? | Not started | - |
 | 4. Guided Setup | 0/? | Not started | - |
 | 5. Versioning and Updates | 0/? | Not started | - |
 
 ---
-*Last updated: 2026-03-18 after roadmap creation*
+*Last updated: 2026-03-18 after Phase 1 planning*
