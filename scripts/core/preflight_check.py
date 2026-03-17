@@ -264,6 +264,62 @@ def attempt_google_token(token_path: Path, scopes: list) -> Tuple[bool, str]:
 # Main
 # ---------------------------------------------------------------------------
 
+def _run_checks(checks):
+    """Run all checks and return (results_list, failure_count)."""
+    results = []
+    failures = 0
+    for name, fn in checks:
+        ok, detail = fn()
+        results.append((name, ok, detail))
+        print_result(name, ok, detail)
+        if not ok:
+            failures += 1
+    return results, failures
+
+
+def _attempt_fixes(failed_names):
+    """Attempt automated fixes for known failure categories."""
+    fix_actions = []
+
+    if {"Atlassian", "Slack", "Glean"} & failed_names:
+        ok, detail = ensure_env_symlink()
+        fix_actions.append(("Env file", ok, detail))
+
+    if "Google Drive" in failed_names:
+        ok, detail = attempt_google_token(
+            SCRIPT_DIR / "token.json",
+            ["https://www.googleapis.com/auth/drive.readonly"],
+        )
+        fix_actions.append(("Google Drive token", ok, detail))
+
+    if MSG_GOOGLE_DOCS_TOKEN in failed_names:
+        ok, detail = attempt_google_token(
+            SCRIPT_DIR / "token_docs.json",
+            [
+                "https://www.googleapis.com/auth/drive.file",
+                "https://www.googleapis.com/auth/documents",
+            ],
+        )
+        fix_actions.append((MSG_GOOGLE_DOCS_TOKEN, ok, detail))
+
+    for name, ok, detail in fix_actions:
+        print_result(f"{name} fix", ok, detail)
+
+
+def _build_checks(args):
+    """Build the list of (name, check_fn) pairs from CLI args."""
+    check_registry = {
+        "google_drive": ("Google Drive", check_google_drive),
+        "google_docs": (MSG_GOOGLE_DOCS_TOKEN, check_google_docs_token),
+        "atlassian": ("Atlassian", check_atlassian),
+        "slack": ("Slack", check_slack),
+        "glean": ("Glean", check_glean),
+    }
+    if args.service == "all":
+        return list(check_registry.values())
+    return [check_registry[args.service]]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Preflight access check")
     parser.add_argument(
@@ -284,68 +340,19 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    check_registry = {
-        "google_drive": ("Google Drive", check_google_drive),
-        "google_docs": (MSG_GOOGLE_DOCS_TOKEN, check_google_docs_token),
-        "atlassian": ("Atlassian", check_atlassian),
-        "slack": ("Slack", check_slack),
-        "glean": ("Glean", check_glean),
-    }
-    if args.service == "all":
-        checks = list(check_registry.values())
-    else:
-        checks = [check_registry[args.service]]
+    checks = _build_checks(args)
 
-    failures = 0
     print("Preflight Access Check")
     print("=" * 28)
-    results = []
-    for name, fn in checks:
-        ok, detail = fn()
-        results.append((name, ok, detail))
-        print_result(name, ok, detail)
-        if not ok:
-            failures += 1
+    results, failures = _run_checks(checks)
 
     if failures and args.attempt_fix:
-        print()
-        print("Attempting fixes...")
+        print("\nAttempting fixes...")
         failed_names = {name for name, ok, _ in results if not ok}
-        fix_actions = []
+        _attempt_fixes(failed_names)
 
-        if {"Atlassian", "Slack", "Glean"} & failed_names:
-            ok, detail = ensure_env_symlink()
-            fix_actions.append(("Env file", ok, detail))
-
-        if "Google Drive" in failed_names:
-            ok, detail = attempt_google_token(
-                SCRIPT_DIR / "token.json",
-                ["https://www.googleapis.com/auth/drive.readonly"],
-            )
-            fix_actions.append(("Google Drive token", ok, detail))
-
-        if MSG_GOOGLE_DOCS_TOKEN in failed_names:
-            ok, detail = attempt_google_token(
-                SCRIPT_DIR / "token_docs.json",
-                [
-                    "https://www.googleapis.com/auth/drive.file",
-                    "https://www.googleapis.com/auth/documents",
-                ],
-            )
-            fix_actions.append((MSG_GOOGLE_DOCS_TOKEN, ok, detail))
-
-        for name, ok, detail in fix_actions:
-            print_result(f"{name} fix", ok, detail)
-
-        # Re-check after fixes
-        print()
-        print("Re-checking...")
-        failures = 0
-        for name, fn in checks:
-            ok, detail = fn()
-            print_result(name, ok, detail)
-            if not ok:
-                failures += 1
+        print("\nRe-checking...")
+        _, failures = _run_checks(checks)
 
     if failures:
         print(f"\n{failures} check(s) failed")

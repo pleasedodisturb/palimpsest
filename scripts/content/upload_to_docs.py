@@ -469,6 +469,59 @@ def _emit_numbered(line_match, index):
 # Markdown -> Docs requests: main converter
 # ---------------------------------------------------------------------------
 
+def _try_multiline_block(lines, i, index):
+    """Handle multi-line blocks (code, table) that advance their own line index.
+
+    Returns:
+        tuple: (requests, new_i, new_index) or None if no match.
+    """
+    line = lines[i]
+    if line.strip().startswith(_CODE_FENCE):
+        return _emit_code_block(lines, i, index)
+    if line.strip().startswith("|") and i + 1 < len(lines):
+        return _emit_table(lines, i, index)
+    return None
+
+
+def _try_single_line_block(line, index):
+    """Handle single-line block elements (hr, heading, blockquote, lists).
+
+    Returns:
+        tuple: (requests, new_index) or None if no match.
+    """
+    if _HORIZONTAL_RULE_RE.match(line.strip()):
+        return _emit_horizontal_rule(index)
+
+    heading_match = _HEADING_RE.match(line)
+    if heading_match:
+        return _emit_heading(heading_match, index)
+
+    if line.strip().startswith(">"):
+        return _emit_blockquote(line, index)
+
+    bullet_match = _BULLET_RE.match(line)
+    if bullet_match:
+        return _emit_bullet(bullet_match, index)
+
+    num_match = _NUMBERED_RE.match(line)
+    if num_match:
+        return _emit_numbered(num_match, index)
+
+    return None
+
+
+def _emit_paragraph_or_blank(line, index):
+    """Emit requests for a plain paragraph or empty-line spacer.
+
+    Returns:
+        tuple: (requests, new_index)
+    """
+    if line.strip():
+        para_text = line.strip() + "\n"
+        return process_inline_formatting(para_text, index)
+    return [{"insertText": {"location": {"index": index}, "text": "\n"}}], index + 1
+
+
 def markdown_to_docs_requests(markdown_text):
     """Convert full markdown text to a list of Google Docs API requests.
 
@@ -487,71 +540,24 @@ def markdown_to_docs_requests(markdown_text):
     while i < len(lines):
         line = lines[i]
 
-        # Code block
-        if line.strip().startswith(_CODE_FENCE):
-            reqs, i, index = _emit_code_block(lines, i, index)
+        # Multi-line blocks advance i themselves
+        multi = _try_multiline_block(lines, i, index)
+        if multi:
+            reqs, i, index = multi
             all_requests.extend(reqs)
             continue
 
-        # Table
-        if line.strip().startswith("|") and i + 1 < len(lines):
-            reqs, i, index = _emit_table(lines, i, index)
-            all_requests.extend(reqs)
-            continue
-
-        # Horizontal rule
-        if _HORIZONTAL_RULE_RE.match(line.strip()):
-            reqs, index = _emit_horizontal_rule(index)
+        # Single-line block elements
+        single = _try_single_line_block(line, index)
+        if single:
+            reqs, index = single
             all_requests.extend(reqs)
             i += 1
             continue
 
-        # Heading
-        heading_match = _HEADING_RE.match(line)
-        if heading_match:
-            reqs, index = _emit_heading(heading_match, index)
-            all_requests.extend(reqs)
-            i += 1
-            continue
-
-        # Blockquote
-        if line.strip().startswith(">"):
-            reqs, index = _emit_blockquote(line, index)
-            all_requests.extend(reqs)
-            i += 1
-            continue
-
-        # Bullet list
-        bullet_match = _BULLET_RE.match(line)
-        if bullet_match:
-            reqs, index = _emit_bullet(bullet_match, index)
-            all_requests.extend(reqs)
-            i += 1
-            continue
-
-        # Numbered list
-        num_match = _NUMBERED_RE.match(line)
-        if num_match:
-            reqs, index = _emit_numbered(num_match, index)
-            all_requests.extend(reqs)
-            i += 1
-            continue
-
-        # Plain paragraph (skip empty lines)
-        if line.strip():
-            para_text = line.strip() + "\n"
-            inline_reqs, index = process_inline_formatting(para_text, index)
-            all_requests.extend(inline_reqs)
-        else:
-            # Empty line -> newline for spacing
-            all_requests.append({
-                "insertText": {
-                    "location": {"index": index},
-                    "text": "\n",
-                }
-            })
-            index += 1
-
+        # Plain paragraph or empty line
+        reqs, index = _emit_paragraph_or_blank(line, index)
+        all_requests.extend(reqs)
         i += 1
 
     return all_requests
