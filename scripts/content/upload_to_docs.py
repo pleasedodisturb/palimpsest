@@ -14,8 +14,8 @@ Usage:
     python upload_to_docs.py <markdown_file> [title] [--shared] [--folder FOLDER_ID]
 
 Environment:
-    PAC_WRITE_GUARD  — Set to "1" to allow write operations (default: read-only)
-    PAC_DOCS_FOLDER  — Default Google Drive folder ID for uploads
+    PAC_WRITE_GUARD  -- Set to "1" to allow write operations (default: read-only)
+    PAC_DOCS_FOLDER  -- Default Google Drive folder ID for uploads
 """
 
 import argparse
@@ -76,6 +76,19 @@ def check_write_guard():
 
 
 # ---------------------------------------------------------------------------
+# Shared regex patterns
+# ---------------------------------------------------------------------------
+
+_CODE_FENCE = "```"
+_HEADING_RE = re.compile(r"^(#{1,4})\s+(.*)")
+_BLOCKQUOTE_RE = re.compile(r"^>\s?")
+_BULLET_RE = re.compile(r"^(\s*)[-*+]\s+(.*)")
+_NUMBERED_RE = re.compile(r"^(\s*)\d+\.\s+(.*)")
+_HORIZONTAL_RULE_RE = re.compile(r"^[-*_]{3,}\s*$")
+_TABLE_SEPARATOR_RE = re.compile(r"^\|[\s\-:|]+\|$")
+
+
+# ---------------------------------------------------------------------------
 # Inline formatting
 # ---------------------------------------------------------------------------
 
@@ -85,8 +98,7 @@ def process_inline_formatting(text, start_index):
     Returns:
         tuple: (list of insert/style requests, end_index after all text inserted)
     """
-    requests = []
-    # Tokenise inline markdown into segments
+    reqs = []
     segments = _tokenise_inline(text)
 
     current_index = start_index
@@ -95,8 +107,7 @@ def process_inline_formatting(text, start_index):
         if not seg_text:
             continue
 
-        # Insert the text
-        requests.append({
+        reqs.append({
             "insertText": {
                 "location": {"index": current_index},
                 "text": seg_text,
@@ -118,7 +129,7 @@ def process_inline_formatting(text, start_index):
             }
 
         if style_updates:
-            requests.append({
+            reqs.append({
                 "updateTextStyle": {
                     "range": {"startIndex": current_index, "endIndex": end},
                     "textStyle": style_updates,
@@ -127,7 +138,7 @@ def process_inline_formatting(text, start_index):
             })
 
         if segment.get("link"):
-            requests.append({
+            reqs.append({
                 "updateTextStyle": {
                     "range": {"startIndex": current_index, "endIndex": end},
                     "textStyle": {"link": {"url": segment["link"]}},
@@ -137,25 +148,13 @@ def process_inline_formatting(text, start_index):
 
         current_index = end
 
-    return requests, current_index
+    return reqs, current_index
 
 
 def _tokenise_inline(text):
     """Split markdown text into styled segments."""
     segments = []
     pos = 0
-
-    # Pattern order matters: bold before italic
-    patterns = [
-        # Bold: **text**
-        (r"\*\*(.+?)\*\*", {"bold": True}),
-        # Italic: *text*
-        (r"\*(.+?)\*", {"italic": True}),
-        # Inline code: `text`
-        (r"`(.+?)`", {"code": True}),
-        # Link: [text](url)
-        (r"\[(.+?)\]\((.+?)\)", {"link": True}),
-    ]
 
     combined = (
         r"(\*\*(.+?)\*\*)"
@@ -188,7 +187,7 @@ def _tokenise_inline(text):
 
 
 # ---------------------------------------------------------------------------
-# Markdown → Docs requests
+# Markdown -> Docs requests: block-level helpers
 # ---------------------------------------------------------------------------
 
 _HEADING_MAP = {
@@ -198,6 +197,277 @@ _HEADING_MAP = {
     4: "HEADING_4",
 }
 
+
+def _emit_code_block(lines, i, index):
+    """Convert a fenced code block to Docs API requests.
+
+    Returns:
+        tuple: (requests_list, new_line_index, new_doc_index)
+    """
+    reqs = []
+    i += 1  # skip opening fence
+    code_lines = []
+    while i < len(lines) and not lines[i].strip().startswith(_CODE_FENCE):
+        code_lines.append(lines[i])
+        i += 1
+    i += 1  # skip closing fence
+    code_text = "\n".join(code_lines) + "\n"
+    reqs.append({
+        "insertText": {
+            "location": {"index": index},
+            "text": code_text,
+        }
+    })
+    end = index + len(code_text)
+    reqs.append({
+        "updateTextStyle": {
+            "range": {"startIndex": index, "endIndex": end},
+            "textStyle": {
+                "weightedFontFamily": {
+                    "fontFamily": "Courier New",
+                    "weight": 400,
+                },
+                "fontSize": {"magnitude": 9, "unit": "PT"},
+            },
+            "fields": "weightedFontFamily,fontSize",
+        }
+    })
+    reqs.append({
+        "updateParagraphStyle": {
+            "range": {"startIndex": index, "endIndex": end},
+            "paragraphStyle": {
+                "shading": {
+                    "backgroundColor": {
+                        "color": {
+                            "rgbColor": {"red": 0.95, "green": 0.95, "blue": 0.95}
+                        }
+                    }
+                }
+            },
+            "fields": "shading",
+        }
+    })
+    return reqs, i, end
+
+
+def _emit_table(lines, i, index):
+    """Convert markdown table lines to Docs API table requests.
+
+    Returns:
+        tuple: (requests_list, new_line_index, new_doc_index)
+    """
+    reqs = []
+    table_lines = []
+    while i < len(lines) and lines[i].strip().startswith("|"):
+        stripped = lines[i].strip()
+        if not _TABLE_SEPARATOR_RE.match(stripped):
+            table_lines.append(stripped)
+        i += 1
+
+    if not table_lines:
+        return reqs, i, index
+
+    rows = []
+    for tl in table_lines:
+        cells = [c.strip() for c in tl.strip("|").split("|")]
+        rows.append(cells)
+
+    n_rows = len(rows)
+    n_cols = max(len(r) for r in rows) if rows else 1
+
+    reqs.append({
+        "insertTable": {
+            "rows": n_rows,
+            "columns": n_cols,
+            "location": {"index": index},
+        }
+    })
+
+    cell_index = index + 1  # start of first row
+    for row in rows:
+        cell_index += 1  # tableRow start
+        for cell_text in row:
+            cell_index += 1  # tableCell start
+            cell_index += 1  # paragraph start
+            if cell_text:
+                reqs.append({
+                    "insertText": {
+                        "location": {"index": cell_index},
+                        "text": cell_text,
+                    }
+                })
+                cell_index += len(cell_text)
+            cell_index += 1  # paragraph end / newline
+        # Pad missing cells
+        for _ in range(n_cols - len(row)):
+            cell_index += 1  # tableCell
+            cell_index += 1  # paragraph
+            cell_index += 1  # newline
+        cell_index += 1  # row end
+
+    return reqs, i, cell_index
+
+
+def _emit_horizontal_rule(index):
+    """Convert a horizontal rule to Docs API requests.
+
+    Returns:
+        tuple: (requests_list, new_doc_index)
+    """
+    reqs = []
+    hr_text = "\n"
+    reqs.append({
+        "insertText": {
+            "location": {"index": index},
+            "text": hr_text,
+        }
+    })
+    end = index + len(hr_text)
+    reqs.append({
+        "updateParagraphStyle": {
+            "range": {"startIndex": index, "endIndex": end},
+            "paragraphStyle": {
+                "borderBottom": {
+                    "color": {
+                        "color": {
+                            "rgbColor": {"red": 0.7, "green": 0.7, "blue": 0.7}
+                        }
+                    },
+                    "width": {"magnitude": 1, "unit": "PT"},
+                    "dashStyle": "SOLID",
+                    "padding": {"magnitude": 6, "unit": "PT"},
+                }
+            },
+            "fields": "borderBottom",
+        }
+    })
+    return reqs, end
+
+
+def _emit_heading(line_match, index):
+    """Convert a heading line to Docs API requests.
+
+    Returns:
+        tuple: (requests_list, new_doc_index)
+    """
+    level = len(line_match.group(1))
+    heading_text = line_match.group(2) + "\n"
+    inline_reqs, new_index = process_inline_formatting(heading_text, index)
+    reqs = list(inline_reqs)
+    reqs.append({
+        "updateParagraphStyle": {
+            "range": {"startIndex": index, "endIndex": new_index},
+            "paragraphStyle": {
+                "namedStyleType": _HEADING_MAP[level],
+            },
+            "fields": "namedStyleType",
+        }
+    })
+    return reqs, new_index
+
+
+def _emit_blockquote(line, index):
+    """Convert a blockquote line to Docs API requests.
+
+    Returns:
+        tuple: (requests_list, new_doc_index)
+    """
+    quote_text = re.sub(r"^>\s?", "", line.strip()) + "\n"
+    inline_reqs, new_index = process_inline_formatting(quote_text, index)
+    reqs = list(inline_reqs)
+    reqs.append({
+        "updateParagraphStyle": {
+            "range": {"startIndex": index, "endIndex": new_index},
+            "paragraphStyle": {
+                "indentStart": {"magnitude": 36, "unit": "PT"},
+                "borderLeft": {
+                    "color": {
+                        "color": {
+                            "rgbColor": {"red": 0.6, "green": 0.6, "blue": 0.6}
+                        }
+                    },
+                    "width": {"magnitude": 3, "unit": "PT"},
+                    "dashStyle": "SOLID",
+                    "padding": {"magnitude": 6, "unit": "PT"},
+                },
+            },
+            "fields": "indentStart,borderLeft",
+        }
+    })
+    reqs.append({
+        "updateTextStyle": {
+            "range": {"startIndex": index, "endIndex": new_index},
+            "textStyle": {
+                "italic": True,
+                "foregroundColor": {
+                    "color": {
+                        "rgbColor": {"red": 0.4, "green": 0.4, "blue": 0.4}
+                    }
+                },
+            },
+            "fields": "italic,foregroundColor",
+        }
+    })
+    return reqs, new_index
+
+
+def _emit_bullet(line_match, index):
+    """Convert a bullet list item to Docs API requests.
+
+    Returns:
+        tuple: (requests_list, new_doc_index)
+    """
+    indent_level = len(line_match.group(1)) // 2
+    item_text = line_match.group(2) + "\n"
+    inline_reqs, new_index = process_inline_formatting(item_text, index)
+    reqs = list(inline_reqs)
+    reqs.append({
+        "createParagraphBullets": {
+            "range": {"startIndex": index, "endIndex": new_index},
+            "bulletPreset": "BULLET_DISC_CIRCLE_SQUARE",
+        }
+    })
+    if indent_level > 0:
+        reqs.append({
+            "updateParagraphStyle": {
+                "range": {"startIndex": index, "endIndex": new_index},
+                "paragraphStyle": {
+                    "indentStart": {
+                        "magnitude": 36 * (indent_level + 1),
+                        "unit": "PT",
+                    },
+                    "indentFirstLine": {
+                        "magnitude": 36 * (indent_level + 1),
+                        "unit": "PT",
+                    },
+                },
+                "fields": "indentStart,indentFirstLine",
+            }
+        })
+    return reqs, new_index
+
+
+def _emit_numbered(line_match, index):
+    """Convert a numbered list item to Docs API requests.
+
+    Returns:
+        tuple: (requests_list, new_doc_index)
+    """
+    item_text = line_match.group(2) + "\n"
+    inline_reqs, new_index = process_inline_formatting(item_text, index)
+    reqs = list(inline_reqs)
+    reqs.append({
+        "createParagraphBullets": {
+            "range": {"startIndex": index, "endIndex": new_index},
+            "bulletPreset": "NUMBERED_DECIMAL_ALPHA_ROMAN",
+        }
+    })
+    return reqs, new_index
+
+
+# ---------------------------------------------------------------------------
+# Markdown -> Docs requests: main converter
+# ---------------------------------------------------------------------------
 
 def markdown_to_docs_requests(markdown_text):
     """Convert full markdown text to a list of Google Docs API requests.
@@ -210,272 +480,71 @@ def markdown_to_docs_requests(markdown_text):
         list[dict]: Docs API batchUpdate requests (applied in order).
     """
     lines = markdown_text.split("\n")
-    requests = []
+    all_requests = []
     index = 1  # Docs body starts at index 1
 
     i = 0
     while i < len(lines):
         line = lines[i]
 
-        # ---- Code block ----
-        if line.strip().startswith("```"):
-            code_lines = []
-            i += 1
-            while i < len(lines) and not lines[i].strip().startswith("```"):
-                code_lines.append(lines[i])
-                i += 1
-            i += 1  # skip closing ```
-            code_text = "\n".join(code_lines) + "\n"
-            requests.append({
-                "insertText": {
-                    "location": {"index": index},
-                    "text": code_text,
-                }
-            })
-            end = index + len(code_text)
-            requests.append({
-                "updateTextStyle": {
-                    "range": {"startIndex": index, "endIndex": end},
-                    "textStyle": {
-                        "weightedFontFamily": {
-                            "fontFamily": "Courier New",
-                            "weight": 400,
-                        },
-                        "fontSize": {"magnitude": 9, "unit": "PT"},
-                    },
-                    "fields": "weightedFontFamily,fontSize",
-                }
-            })
-            requests.append({
-                "updateParagraphStyle": {
-                    "range": {"startIndex": index, "endIndex": end},
-                    "paragraphStyle": {
-                        "shading": {
-                            "backgroundColor": {
-                                "color": {
-                                    "rgbColor": {"red": 0.95, "green": 0.95, "blue": 0.95}
-                                }
-                            }
-                        }
-                    },
-                    "fields": "shading",
-                }
-            })
-            index = end
+        # Code block
+        if line.strip().startswith(_CODE_FENCE):
+            reqs, i, index = _emit_code_block(lines, i, index)
+            all_requests.extend(reqs)
             continue
 
-        # ---- Table ----
+        # Table
         if line.strip().startswith("|") and i + 1 < len(lines):
-            table_lines = []
-            while i < len(lines) and lines[i].strip().startswith("|"):
-                stripped = lines[i].strip()
-                # Skip separator rows like |---|---|
-                if not re.match(r"^\|[\s\-:|]+\|$", stripped):
-                    table_lines.append(stripped)
-                i += 1
-
-            if table_lines:
-                rows = []
-                for tl in table_lines:
-                    cells = [c.strip() for c in tl.strip("|").split("|")]
-                    rows.append(cells)
-
-                n_rows = len(rows)
-                n_cols = max(len(r) for r in rows) if rows else 1
-
-                requests.append({
-                    "insertTable": {
-                        "rows": n_rows,
-                        "columns": n_cols,
-                        "location": {"index": index},
-                    }
-                })
-                # After inserting a table, the index structure changes.
-                # We need to populate cells. Table starts at index+1.
-                # Each row starts with a tableRow, each cell with tableCell,
-                # each cell has a paragraph. Simplified: insert text into
-                # known cell positions.
-                cell_index = index + 1  # start of first row
-                for row in rows:
-                    cell_index += 1  # tableRow start
-                    for ci, cell_text in enumerate(row):
-                        cell_index += 1  # tableCell start
-                        cell_index += 1  # paragraph start
-                        if cell_text:
-                            requests.append({
-                                "insertText": {
-                                    "location": {"index": cell_index},
-                                    "text": cell_text,
-                                }
-                            })
-                            cell_index += len(cell_text)
-                        cell_index += 1  # paragraph end / newline
-                    # Pad missing cells
-                    for _ in range(n_cols - len(row)):
-                        cell_index += 1  # tableCell
-                        cell_index += 1  # paragraph
-                        cell_index += 1  # newline
-                    cell_index += 1  # row end
-
-                index = cell_index
+            reqs, i, index = _emit_table(lines, i, index)
+            all_requests.extend(reqs)
             continue
 
-        # ---- Horizontal rule ----
-        if re.match(r"^[-*_]{3,}\s*$", line.strip()):
-            hr_text = "\n"
-            requests.append({
-                "insertText": {
-                    "location": {"index": index},
-                    "text": hr_text,
-                }
-            })
-            end = index + len(hr_text)
-            requests.append({
-                "updateParagraphStyle": {
-                    "range": {"startIndex": index, "endIndex": end},
-                    "paragraphStyle": {
-                        "borderBottom": {
-                            "color": {
-                                "color": {
-                                    "rgbColor": {"red": 0.7, "green": 0.7, "blue": 0.7}
-                                }
-                            },
-                            "width": {"magnitude": 1, "unit": "PT"},
-                            "dashStyle": "SOLID",
-                            "padding": {"magnitude": 6, "unit": "PT"},
-                        }
-                    },
-                    "fields": "borderBottom",
-                }
-            })
-            index = end
+        # Horizontal rule
+        if _HORIZONTAL_RULE_RE.match(line.strip()):
+            reqs, index = _emit_horizontal_rule(index)
+            all_requests.extend(reqs)
             i += 1
             continue
 
-        # ---- Heading ----
-        heading_match = re.match(r"^(#{1,4})\s+(.*)", line)
+        # Heading
+        heading_match = _HEADING_RE.match(line)
         if heading_match:
-            level = len(heading_match.group(1))
-            heading_text = heading_match.group(2) + "\n"
-
-            inline_reqs, new_index = process_inline_formatting(heading_text, index)
-            requests.extend(inline_reqs)
-
-            requests.append({
-                "updateParagraphStyle": {
-                    "range": {"startIndex": index, "endIndex": new_index},
-                    "paragraphStyle": {
-                        "namedStyleType": _HEADING_MAP[level],
-                    },
-                    "fields": "namedStyleType",
-                }
-            })
-            index = new_index
+            reqs, index = _emit_heading(heading_match, index)
+            all_requests.extend(reqs)
             i += 1
             continue
 
-        # ---- Blockquote ----
+        # Blockquote
         if line.strip().startswith(">"):
-            quote_text = re.sub(r"^>\s?", "", line.strip()) + "\n"
-            inline_reqs, new_index = process_inline_formatting(quote_text, index)
-            requests.extend(inline_reqs)
-            requests.append({
-                "updateParagraphStyle": {
-                    "range": {"startIndex": index, "endIndex": new_index},
-                    "paragraphStyle": {
-                        "indentStart": {"magnitude": 36, "unit": "PT"},
-                        "borderLeft": {
-                            "color": {
-                                "color": {
-                                    "rgbColor": {"red": 0.6, "green": 0.6, "blue": 0.6}
-                                }
-                            },
-                            "width": {"magnitude": 3, "unit": "PT"},
-                            "dashStyle": "SOLID",
-                            "padding": {"magnitude": 6, "unit": "PT"},
-                        },
-                    },
-                    "fields": "indentStart,borderLeft",
-                }
-            })
-            requests.append({
-                "updateTextStyle": {
-                    "range": {"startIndex": index, "endIndex": new_index},
-                    "textStyle": {
-                        "italic": True,
-                        "foregroundColor": {
-                            "color": {
-                                "rgbColor": {"red": 0.4, "green": 0.4, "blue": 0.4}
-                            }
-                        },
-                    },
-                    "fields": "italic,foregroundColor",
-                }
-            })
-            index = new_index
+            reqs, index = _emit_blockquote(line, index)
+            all_requests.extend(reqs)
             i += 1
             continue
 
-        # ---- Bullet list ----
-        bullet_match = re.match(r"^(\s*)[-*+]\s+(.*)", line)
+        # Bullet list
+        bullet_match = _BULLET_RE.match(line)
         if bullet_match:
-            indent_level = len(bullet_match.group(1)) // 2
-            item_text = bullet_match.group(2) + "\n"
-            inline_reqs, new_index = process_inline_formatting(item_text, index)
-            requests.extend(inline_reqs)
-            requests.append({
-                "createParagraphBullets": {
-                    "range": {"startIndex": index, "endIndex": new_index},
-                    "bulletPreset": "BULLET_DISC_CIRCLE_SQUARE",
-                }
-            })
-            if indent_level > 0:
-                requests.append({
-                    "updateParagraphStyle": {
-                        "range": {"startIndex": index, "endIndex": new_index},
-                        "paragraphStyle": {
-                            "indentStart": {
-                                "magnitude": 36 * (indent_level + 1),
-                                "unit": "PT",
-                            },
-                            "indentFirstLine": {
-                                "magnitude": 36 * (indent_level + 1),
-                                "unit": "PT",
-                            },
-                        },
-                        "fields": "indentStart,indentFirstLine",
-                    }
-                })
-            index = new_index
+            reqs, index = _emit_bullet(bullet_match, index)
+            all_requests.extend(reqs)
             i += 1
             continue
 
-        # ---- Numbered list ----
-        num_match = re.match(r"^(\s*)\d+\.\s+(.*)", line)
+        # Numbered list
+        num_match = _NUMBERED_RE.match(line)
         if num_match:
-            indent_level = len(num_match.group(1)) // 2
-            item_text = num_match.group(2) + "\n"
-            inline_reqs, new_index = process_inline_formatting(item_text, index)
-            requests.extend(inline_reqs)
-            requests.append({
-                "createParagraphBullets": {
-                    "range": {"startIndex": index, "endIndex": new_index},
-                    "bulletPreset": "NUMBERED_DECIMAL_ALPHA_ROMAN",
-                }
-            })
-            index = new_index
+            reqs, index = _emit_numbered(num_match, index)
+            all_requests.extend(reqs)
             i += 1
             continue
 
-        # ---- Plain paragraph (skip empty lines) ----
+        # Plain paragraph (skip empty lines)
         if line.strip():
             para_text = line.strip() + "\n"
-            inline_reqs, new_index = process_inline_formatting(para_text, index)
-            requests.extend(inline_reqs)
-            index = new_index
+            inline_reqs, index = process_inline_formatting(para_text, index)
+            all_requests.extend(inline_reqs)
         else:
-            # Empty line → newline for spacing
-            requests.append({
+            # Empty line -> newline for spacing
+            all_requests.append({
                 "insertText": {
                     "location": {"index": index},
                     "text": "\n",
@@ -485,7 +554,7 @@ def markdown_to_docs_requests(markdown_text):
 
         i += 1
 
-    return requests
+    return all_requests
 
 
 # ---------------------------------------------------------------------------
@@ -534,13 +603,13 @@ def create_doc_from_markdown(creds, md_file, title=None, folder_id=None):
         print(f"Moved to folder: {folder_id}")
 
     # Convert markdown to requests and apply
-    requests = markdown_to_docs_requests(markdown_text)
-    if requests:
+    doc_requests = markdown_to_docs_requests(markdown_text)
+    if doc_requests:
         docs_service.documents().batchUpdate(
             documentId=doc_id,
-            body={"requests": requests},
+            body={"requests": doc_requests},
         ).execute()
-        print(f"Applied {len(requests)} formatting requests")
+        print(f"Applied {len(doc_requests)} formatting requests")
 
     # Add agent marker as document property
     _add_agent_marker(drive_service, doc_id, md_path.name)

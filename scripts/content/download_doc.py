@@ -85,6 +85,77 @@ _HEADING_PREFIX = {
 }
 
 
+def _apply_inline_formatting(stripped, ts):
+    """Apply bold/italic markdown formatting based on text style.
+
+    Args:
+        stripped: Text with trailing newlines removed.
+        ts: Google Docs textStyle dict.
+
+    Returns:
+        str: Text with markdown inline formatting applied.
+    """
+    if not stripped:
+        return stripped
+
+    if ts.get("bold") and ts.get("italic"):
+        stripped = f"***{stripped}***"
+    elif ts.get("bold"):
+        stripped = f"**{stripped}**"
+    elif ts.get("italic"):
+        stripped = f"*{stripped}*"
+
+    link = ts.get("link", {}).get("url")
+    if link:
+        stripped = f"[{stripped}]({link})"
+
+    return stripped
+
+
+def _convert_text_run(run):
+    """Convert a single text run element to markdown text.
+
+    Args:
+        run: A Google Docs paragraph element dict.
+
+    Returns:
+        str or None: Formatted text, or None if not a text run.
+    """
+    text_run = run.get("textRun")
+    if not text_run:
+        return None
+
+    text = text_run.get("content", "")
+    ts = text_run.get("textStyle", {})
+    stripped = text.rstrip("\n")
+    return _apply_inline_formatting(stripped, ts)
+
+
+def _convert_paragraph(paragraph):
+    """Convert a Google Docs paragraph to a markdown line.
+
+    Args:
+        paragraph: Google Docs paragraph dict.
+
+    Returns:
+        str or None: Markdown line, or None if the paragraph should be skipped.
+    """
+    style = paragraph.get("paragraphStyle", {})
+    named_style = style.get("namedStyleType", "NORMAL_TEXT")
+    prefix = _HEADING_PREFIX.get(named_style, "")
+
+    line_parts = []
+    for run in paragraph.get("elements", []):
+        part = _convert_text_run(run)
+        if part is not None:
+            line_parts.append(part)
+
+    line_text = "".join(line_parts)
+    if line_text or not prefix:
+        return f"{prefix}{line_text}"
+    return None
+
+
 def download_doc(creds, doc_id):
     """Download a Google Doc and return its content as markdown.
 
@@ -112,39 +183,9 @@ def download_doc(creds, doc_id):
         paragraph = element.get("paragraph")
         if not paragraph:
             continue
-
-        style = paragraph.get("paragraphStyle", {})
-        named_style = style.get("namedStyleType", "NORMAL_TEXT")
-        prefix = _HEADING_PREFIX.get(named_style, "")
-
-        line_parts = []
-        for run in paragraph.get("elements", []):
-            text_run = run.get("textRun")
-            if not text_run:
-                continue
-
-            text = text_run.get("content", "")
-            ts = text_run.get("textStyle", {})
-
-            # Apply inline formatting
-            stripped = text.rstrip("\n")
-            if stripped:
-                if ts.get("bold") and ts.get("italic"):
-                    stripped = f"***{stripped}***"
-                elif ts.get("bold"):
-                    stripped = f"**{stripped}**"
-                elif ts.get("italic"):
-                    stripped = f"*{stripped}*"
-
-                link = ts.get("link", {}).get("url")
-                if link:
-                    stripped = f"[{stripped}]({link})"
-
-            line_parts.append(stripped)
-
-        line_text = "".join(line_parts)
-        if line_text or not prefix:
-            md_lines.append(f"{prefix}{line_text}")
+        line = _convert_paragraph(paragraph)
+        if line is not None:
+            md_lines.append(line)
 
     markdown = "\n".join(md_lines)
     return title, markdown

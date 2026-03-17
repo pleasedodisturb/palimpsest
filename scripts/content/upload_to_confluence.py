@@ -8,9 +8,9 @@ Usage:
     python upload_to_confluence.py <space_key> <markdown_file> <title> [parent_id]
 
 Environment (required, no defaults):
-    ATLASSIAN_EMAIL      — Atlassian account email
-    ATLASSIAN_API_TOKEN  — API token for authentication
-    ATLASSIAN_DOMAIN     — Confluence domain (e.g., mycompany.atlassian.net)
+    ATLASSIAN_EMAIL      -- Atlassian account email
+    ATLASSIAN_API_TOKEN  -- API token for authentication
+    ATLASSIAN_DOMAIN     -- Confluence domain (e.g., mycompany.atlassian.net)
 """
 
 import argparse
@@ -41,7 +41,20 @@ def _get_auth():
 
 
 # ---------------------------------------------------------------------------
-# Markdown → Confluence XHTML
+# Shared regex patterns (constants to avoid duplication)
+# ---------------------------------------------------------------------------
+
+_TABLE_SEPARATOR_RE = re.compile(r"^\|[\s\-:|]+\|$")
+_HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)")
+_CHECKBOX_RE = re.compile(r"^[-*]\s+\[([ xX])\]\s+(.*)")
+_BULLET_RE = re.compile(r"^[-*+]\s+")
+_NUMBERED_RE = re.compile(r"^\d+\.\s+")
+_HORIZONTAL_RULE_RE = re.compile(r"^[-*_]{3,}\s*$")
+_CODE_FENCE = "```"
+
+
+# ---------------------------------------------------------------------------
+# Markdown -> Confluence XHTML
 # ---------------------------------------------------------------------------
 
 def convert_table(lines):
@@ -57,7 +70,7 @@ def convert_table(lines):
     for line in lines:
         stripped = line.strip()
         # Skip separator rows
-        if re.match(r"^\|[\s\-:|]+\|$", stripped):
+        if _TABLE_SEPARATOR_RE.match(stripped):
             continue
         cells = [c.strip() for c in stripped.strip("|").split("|")]
         rows.append(cells)
@@ -74,6 +87,55 @@ def convert_table(lines):
         html += "</tr>"
     html += "</tbody></table>"
     return html
+
+
+def _convert_code_block(lines, i):
+    """Parse a fenced code block and return Confluence macro HTML.
+
+    Returns:
+        tuple: (html_string, new_line_index)
+    """
+    lang = lines[i].strip().lstrip("`").strip() or "none"
+    code_lines = []
+    i += 1
+    while i < len(lines) and not lines[i].strip().startswith(_CODE_FENCE):
+        code_lines.append(lines[i])
+        i += 1
+    i += 1  # skip closing fence
+    code = "\n".join(code_lines)
+    html = (
+        f'<ac:structured-macro ac:name="code">'
+        f'<ac:parameter ac:name="language">{lang}</ac:parameter>'
+        f"<ac:plain-text-body><![CDATA[{code}]]></ac:plain-text-body>"
+        f"</ac:structured-macro>"
+    )
+    return html, i
+
+
+def _convert_table_block(lines, i):
+    """Parse consecutive table lines and return Confluence table HTML.
+
+    Returns:
+        tuple: (html_string, new_line_index)
+    """
+    table_lines = []
+    while i < len(lines) and lines[i].strip().startswith("|"):
+        table_lines.append(lines[i])
+        i += 1
+    return convert_table(table_lines), i
+
+
+def _collect_list_items(lines, i, pattern):
+    """Collect consecutive list items matching a regex pattern.
+
+    Returns:
+        tuple: (list_of_item_texts, new_line_index)
+    """
+    items = []
+    while i < len(lines) and pattern.match(lines[i]):
+        items.append(_inline(pattern.sub("", lines[i])))
+        i += 1
+    return items, i
 
 
 def markdown_to_confluence(markdown_text):
@@ -96,34 +158,19 @@ def markdown_to_confluence(markdown_text):
         line = lines[i]
 
         # Code block
-        if line.strip().startswith("```"):
-            lang = line.strip().lstrip("`").strip() or "none"
-            code_lines = []
-            i += 1
-            while i < len(lines) and not lines[i].strip().startswith("```"):
-                code_lines.append(lines[i])
-                i += 1
-            i += 1  # skip closing
-            code = "\n".join(code_lines)
-            html_parts.append(
-                f'<ac:structured-macro ac:name="code">'
-                f'<ac:parameter ac:name="language">{lang}</ac:parameter>'
-                f"<ac:plain-text-body><![CDATA[{code}]]></ac:plain-text-body>"
-                f"</ac:structured-macro>"
-            )
+        if line.strip().startswith(_CODE_FENCE):
+            html, i = _convert_code_block(lines, i)
+            html_parts.append(html)
             continue
 
         # Table
         if line.strip().startswith("|"):
-            table_lines = []
-            while i < len(lines) and lines[i].strip().startswith("|"):
-                table_lines.append(lines[i])
-                i += 1
-            html_parts.append(convert_table(table_lines))
+            html, i = _convert_table_block(lines, i)
+            html_parts.append(html)
             continue
 
         # Heading
-        heading_match = re.match(r"^(#{1,6})\s+(.*)", line)
+        heading_match = _HEADING_RE.match(line)
         if heading_match:
             level = len(heading_match.group(1))
             text = _inline(heading_match.group(2))
@@ -132,7 +179,7 @@ def markdown_to_confluence(markdown_text):
             continue
 
         # Checkbox
-        checkbox_match = re.match(r"^[-*]\s+\[([ xX])\]\s+(.*)", line)
+        checkbox_match = _CHECKBOX_RE.match(line)
         if checkbox_match:
             checked = checkbox_match.group(1).lower() == "x"
             text = _inline(checkbox_match.group(2))
@@ -142,22 +189,16 @@ def markdown_to_confluence(markdown_text):
             continue
 
         # Bullet list
-        if re.match(r"^[-*+]\s+", line):
-            items = []
-            while i < len(lines) and re.match(r"^[-*+]\s+", lines[i]):
-                items.append(_inline(re.sub(r"^[-*+]\s+", "", lines[i])))
-                i += 1
+        if _BULLET_RE.match(line):
+            items, i = _collect_list_items(lines, i, _BULLET_RE)
             html_parts.append(
                 "<ul>" + "".join(f"<li>{it}</li>" for it in items) + "</ul>"
             )
             continue
 
         # Numbered list
-        if re.match(r"^\d+\.\s+", line):
-            items = []
-            while i < len(lines) and re.match(r"^\d+\.\s+", lines[i]):
-                items.append(_inline(re.sub(r"^\d+\.\s+", "", lines[i])))
-                i += 1
+        if _NUMBERED_RE.match(line):
+            items, i = _collect_list_items(lines, i, _NUMBERED_RE)
             html_parts.append(
                 "<ol>" + "".join(f"<li>{it}</li>" for it in items) + "</ol>"
             )
@@ -171,7 +212,7 @@ def markdown_to_confluence(markdown_text):
             continue
 
         # Horizontal rule
-        if re.match(r"^[-*_]{3,}\s*$", line.strip()):
+        if _HORIZONTAL_RULE_RE.match(line.strip()):
             html_parts.append("<hr/>")
             i += 1
             continue

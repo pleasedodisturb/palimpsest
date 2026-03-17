@@ -164,6 +164,16 @@ def collect_drive_keyword(creds, keyword):
     return entries
 
 
+def _get_atlassian_credentials():
+    """Return (domain, email, token) from environment, or None if missing."""
+    domain = os.environ.get("ATLASSIAN_DOMAIN")
+    email = os.environ.get("ATLASSIAN_EMAIL")
+    token = os.environ.get("ATLASSIAN_API_TOKEN")
+    if not all([domain, email, token]):
+        return None
+    return domain, email, token
+
+
 def collect_confluence(space_keys, labels=None):
     """Collect pages from Confluence spaces.
 
@@ -172,14 +182,12 @@ def collect_confluence(space_keys, labels=None):
     """
     import requests as req
 
-    domain = os.environ.get("ATLASSIAN_DOMAIN")
-    email = os.environ.get("ATLASSIAN_EMAIL")
-    token = os.environ.get("ATLASSIAN_API_TOKEN")
-
-    if not all([domain, email, token]):
+    creds = _get_atlassian_credentials()
+    if creds is None:
         print("WARNING: Confluence credentials not set, skipping Confluence source.")
         return []
 
+    domain, email, token = creds
     entries = []
     for space_key in space_keys:
         cql = f'space = "{space_key}"'
@@ -210,6 +218,43 @@ def collect_confluence(space_keys, labels=None):
     return entries
 
 
+def _should_include_attachment(filename, attachment_types):
+    """Check whether a Jira attachment matches the allowed types."""
+    if not attachment_types:
+        return True
+    ext = Path(filename).suffix.lower()
+    return ext in attachment_types
+
+
+def _build_jira_entry(issue_key, att, project):
+    """Build a registry entry dict from a Jira attachment."""
+    return {
+        "title": f"{issue_key}: {att.get('filename', '')}",
+        "url": att.get("content", ""),
+        "source": "jira",
+        "project": project,
+        "issue": issue_key,
+        "modified": att.get("created", ""),
+    }
+
+
+def _fetch_jira_project(req, domain, email, token, project):
+    """Fetch issues with attachments for a single Jira project."""
+    url = f"https://{domain}/rest/api/3/search"
+    params = {
+        "jql": f"project = {project} AND attachments IS NOT EMPTY",
+        "maxResults": 50,
+        "fields": "summary,attachment",
+    }
+    try:
+        resp = req.get(url, params=params, auth=(email, token), timeout=30)
+        resp.raise_for_status()
+    except req.RequestException as e:
+        print(f"WARNING: Jira search failed for {project}: {e}")
+        return []
+    return resp.json().get("issues", [])
+
+
 def collect_jira(projects, attachment_types=None):
     """Collect documents attached to Jira issues.
 
@@ -218,49 +263,23 @@ def collect_jira(projects, attachment_types=None):
     """
     import requests as req
 
-    domain = os.environ.get("ATLASSIAN_DOMAIN")
-    email = os.environ.get("ATLASSIAN_EMAIL")
-    token = os.environ.get("ATLASSIAN_API_TOKEN")
-
-    if not all([domain, email, token]):
+    creds = _get_atlassian_credentials()
+    if creds is None:
         print("WARNING: Jira credentials not set, skipping Jira source.")
         return []
 
+    domain, email, token = creds
     entries = []
     attachment_types = attachment_types or []
 
     for project in projects:
-        url = f"https://{domain}/rest/api/3/search"
-        params = {
-            "jql": f"project = {project} AND attachments IS NOT EMPTY",
-            "maxResults": 50,
-            "fields": "summary,attachment",
-        }
-
-        try:
-            resp = req.get(url, params=params, auth=(email, token), timeout=30)
-            resp.raise_for_status()
-        except req.RequestException as e:
-            print(f"WARNING: Jira search failed for {project}: {e}")
-            continue
-
-        for issue in resp.json().get("issues", []):
+        issues = _fetch_jira_project(req, domain, email, token, project)
+        for issue in issues:
             issue_key = issue["key"]
             for att in issue["fields"].get("attachment", []):
-                filename = att.get("filename", "")
-                if attachment_types:
-                    ext = Path(filename).suffix.lower()
-                    if ext not in attachment_types:
-                        continue
-
-                entries.append({
-                    "title": f"{issue_key}: {filename}",
-                    "url": att.get("content", ""),
-                    "source": "jira",
-                    "project": project,
-                    "issue": issue_key,
-                    "modified": att.get("created", ""),
-                })
+                if not _should_include_attachment(att.get("filename", ""), attachment_types):
+                    continue
+                entries.append(_build_jira_entry(issue_key, att, project))
 
     return entries
 
@@ -410,6 +429,38 @@ def dedupe_entries(entries):
 # Output
 # ---------------------------------------------------------------------------
 
+def _format_entry_table_row(entry):
+    """Format a single entry as a markdown table row."""
+    title = entry.get("title", "Untitled")
+    url = entry.get("url", "")
+    source = entry.get("source", "")
+    status = entry.get("status", "unknown")
+    importance = entry.get("importance", "normal")
+    modified = entry.get("modified", "")[:10]
+    link = f"[{title}]({url})" if url else title
+    return f"| {link} | {source} | {status} | {importance} | {modified} |"
+
+
+def _format_entry_list_item(entry):
+    """Format a single entry as a markdown list item."""
+    title = entry.get("title", "Untitled")
+    url = entry.get("url", "")
+    return f"- [{title}]({url})" if url else f"- {title}"
+
+
+def _render_group(lines, group_entries, include_metadata):
+    """Render a group of entries as either a table or a list."""
+    sorted_entries = sorted(group_entries, key=lambda e: e.get("title", ""))
+    if include_metadata:
+        lines.append("| Title | Source | Status | Importance | Modified |")
+        lines.append("|-------|--------|--------|------------|----------|")
+        for entry in sorted_entries:
+            lines.append(_format_entry_table_row(entry))
+    else:
+        for entry in sorted_entries:
+            lines.append(_format_entry_list_item(entry))
+
+
 def generate_markdown(entries, config):
     """Generate a markdown document registry from classified entries.
 
@@ -439,31 +490,9 @@ def generate_markdown(entries, config):
         groups.setdefault(key, []).append(entry)
 
     for group_name in sorted(groups.keys()):
-        group_entries = groups[group_name]
         lines.append(f"## {group_name.replace('_', ' ').title()}")
         lines.append("")
-
-        if include_metadata:
-            lines.append("| Title | Source | Status | Importance | Modified |")
-            lines.append("|-------|--------|--------|------------|----------|")
-
-            for entry in sorted(group_entries, key=lambda e: e.get("title", "")):
-                title = entry.get("title", "Untitled")
-                url = entry.get("url", "")
-                source = entry.get("source", "")
-                status = entry.get("status", "unknown")
-                importance = entry.get("importance", "normal")
-                modified = entry.get("modified", "")[:10]
-
-                link = f"[{title}]({url})" if url else title
-                lines.append(f"| {link} | {source} | {status} | {importance} | {modified} |")
-        else:
-            for entry in sorted(group_entries, key=lambda e: e.get("title", "")):
-                title = entry.get("title", "Untitled")
-                url = entry.get("url", "")
-                link = f"- [{title}]({url})" if url else f"- {title}"
-                lines.append(link)
-
+        _render_group(lines, groups[group_name], include_metadata)
         lines.append("")
 
     return "\n".join(lines)
