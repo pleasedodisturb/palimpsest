@@ -48,6 +48,7 @@ except ImportError:
 # Constants for duplicated literals
 DRIVE_READONLY_SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 GOOGLE_APPS_MIME_PREFIX = 'application/vnd.google-apps.'
+APPLICATION_PDF = 'application/pdf'
 
 # Configuration from environment
 DRIVE_FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID")
@@ -338,9 +339,9 @@ def export_google_doc(service, file_id: str, file_name: str, destination: Path, 
         GOOGLE_APPS_MIME_PREFIX + 'spreadsheet': (
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xlsx',
         ),
-        GOOGLE_APPS_MIME_PREFIX + 'presentation': ('application/pdf', '.pdf'),
-        GOOGLE_APPS_MIME_PREFIX + 'drawing': ('application/pdf', '.pdf'),
-        GOOGLE_APPS_MIME_PREFIX + 'jam': ('application/pdf', '.pdf'),
+        GOOGLE_APPS_MIME_PREFIX + 'presentation': (APPLICATION_PDF, '.pdf'),
+        GOOGLE_APPS_MIME_PREFIX + 'drawing': (APPLICATION_PDF, '.pdf'),
+        GOOGLE_APPS_MIME_PREFIX + 'jam': (APPLICATION_PDF, '.pdf'),
     }
 
     skip_types = [
