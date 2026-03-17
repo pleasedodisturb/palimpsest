@@ -149,10 +149,9 @@ def run_link_extractor() -> bool:
         )
         if result.returncode == 0:
             log("Link extraction complete", "OK")
-            return True
         else:
             log("Link extraction skipped (no new docs)", "WARN")
-            return False
+        return True
     except Exception as e:
         log(f"Link extraction failed: {e}", "WARN")
         return False
