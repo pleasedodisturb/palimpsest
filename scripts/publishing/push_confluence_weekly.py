@@ -27,6 +27,12 @@ from pathlib import Path
 import requests
 from urllib.parse import quote
 
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+CONTENT_TYPE_JSON = "application/json"
+UL_CLOSE_TAG = "</ul>"
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -118,7 +124,7 @@ def update_page(page_id, title, content, version_number):
     }
     resp = requests.put(
         url, json=payload, auth=(email, token),
-        headers={"Content-Type": "application/json"}, timeout=30,
+        headers={"Content-Type": CONTENT_TYPE_JSON}, timeout=30,
     )
     resp.raise_for_status()
     return resp.json()
@@ -136,13 +142,13 @@ def set_agent_marker(page_id):
     payload = {"key": "pac.agent_marker", "value": marker}
     resp = requests.put(
         url, json=payload, auth=(email, token),
-        headers={"Content-Type": "application/json"}, timeout=30,
+        headers={"Content-Type": CONTENT_TYPE_JSON}, timeout=30,
     )
     if resp.status_code == 404:
         post_url = _confluence_api_url(domain, page_id, "/property")
         requests.post(
             post_url, json=payload, auth=(email, token),
-            headers={"Content-Type": "application/json"}, timeout=30,
+            headers={"Content-Type": CONTENT_TYPE_JSON}, timeout=30,
         )
 
 
@@ -208,21 +214,21 @@ def generate_weekly_summary(week_info, context=None):
     html += "<h3>Achievements</h3><ul>"
     for item in achievements:
         html += f"<li>{item}</li>"
-    html += "</ul>"
+    html += UL_CLOSE_TAG
 
     # Blockers
     if blockers:
         html += "<h3>Blockers</h3><ul>"
         for item in blockers:
             html += f"<li>{item}</li>"
-        html += "</ul>"
+        html += UL_CLOSE_TAG
 
     # Next week
     if next_week:
         html += "<h3>Next Week</h3><ul>"
         for item in next_week:
             html += f"<li>{item}</li>"
-        html += "</ul>"
+        html += UL_CLOSE_TAG
 
     html += "</ac:rich-text-body></ac:structured-macro>"
     return html
