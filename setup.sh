@@ -18,11 +18,12 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
+SEPARATOR='-------------------------------------------'
 
-info() { echo -e "${BLUE}>${NC} $1"; }
-success() { echo -e "${GREEN}+${NC} $1"; }
-warn() { echo -e "${YELLOW}!${NC} $1"; }
-error() { echo -e "${RED}x${NC} $1"; exit 1; }
+info() { local msg="$1"; echo -e "${BLUE}>${NC} ${msg}"; return 0; }
+success() { local msg="$1"; echo -e "${GREEN}+${NC} ${msg}"; return 0; }
+warn() { local msg="$1"; echo -e "${YELLOW}!${NC} ${msg}"; return 0; }
+error() { local msg="$1"; echo -e "${RED}x${NC} ${msg}"; exit 1; }
 
 # Defaults
 WITH_GLEAN=false
@@ -52,17 +53,17 @@ for arg in "$@"; do
             exit 0
             ;;
         -*)  error "Unknown option: $arg" ;;
-        *)   [ -z "$PROJECT_NAME" ] && PROJECT_NAME="$arg" ;;
+        *)   [[ -z "$PROJECT_NAME" ]] && PROJECT_NAME="$arg" ;;
     esac
 done
 
-[ -z "$PROJECT_NAME" ] && error "Please provide a project name: ./setup.sh my-program-name"
-[ -d "$PROJECT_NAME" ] && error "Directory '$PROJECT_NAME' already exists"
+[[ -z "$PROJECT_NAME" ]] && error "Please provide a project name: ./setup.sh my-program-name"
+[[ -d "$PROJECT_NAME" ]] && error "Directory '$PROJECT_NAME' already exists"
 
 echo ""
-echo "-------------------------------------------"
+echo "$SEPARATOR"
 echo "  Palimpsest Setup"
-echo "-------------------------------------------"
+echo "$SEPARATOR"
 echo ""
 info "Creating project: $PROJECT_NAME"
 echo ""
@@ -326,7 +327,7 @@ EOF
 success ".gitignore created"
 
 # Create templates
-if [ "$MINIMAL" = false ]; then
+if [[ "$MINIMAL" = false ]]; then
     info "Creating templates..."
     cat > docs/templates/STAKEHOLDER_UPDATE.md << 'EOF'
 # Weekly Status Update - [DATE]
@@ -365,7 +366,7 @@ fi
 info "Creating MCP configuration..."
 
 MCP_SERVERS=""
-if [ "$WITH_GLEAN" = true ]; then
+if [[ "$WITH_GLEAN" = true ]]; then
     MCP_SERVERS="${MCP_SERVERS}
     \"glean\": {
       \"command\": \"npx\",
@@ -377,8 +378,8 @@ if [ "$WITH_GLEAN" = true ]; then
     }"
 fi
 
-if [ "$WITH_GITHUB" = true ]; then
-    [ -n "$MCP_SERVERS" ] && MCP_SERVERS="${MCP_SERVERS},"
+if [[ "$WITH_GITHUB" = true ]]; then
+    [[ -n "$MCP_SERVERS" ]] && MCP_SERVERS="${MCP_SERVERS},"
     MCP_SERVERS="${MCP_SERVERS}
     \"github\": {
       \"command\": \"npx\",
@@ -389,7 +390,7 @@ if [ "$WITH_GITHUB" = true ]; then
     }"
 fi
 
-if [ -n "$MCP_SERVERS" ]; then
+if [[ -n "$MCP_SERVERS" ]]; then
     cat > .cursor/mcp.json << MCPEOF
 {
   "mcpServers": {${MCP_SERVERS}
@@ -457,9 +458,9 @@ success "Git repository initialized"
 
 # Output
 echo ""
-echo "-------------------------------------------"
+echo "$SEPARATOR"
 echo -e "  ${GREEN}Setup complete!${NC}"
-echo "-------------------------------------------"
+echo "$SEPARATOR"
 echo ""
 echo "Next steps:"
 echo ""
@@ -474,12 +475,12 @@ echo ""
 echo "  4. Edit docs/PROGRAM_OVERVIEW.md with your program details"
 echo ""
 
-if [ "$WITH_GLEAN" = true ]; then
+if [[ "$WITH_GLEAN" = true ]]; then
     warn "Set GLEAN_API_TOKEN and GLEAN_INSTANCE in your environment"
 fi
-if [ "$WITH_GITHUB" = true ]; then
+if [[ "$WITH_GITHUB" = true ]]; then
     warn "Set GITHUB_TOKEN in your environment"
 fi
 
-echo "-------------------------------------------"
+echo "$SEPARATOR"
 echo ""
