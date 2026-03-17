@@ -217,6 +217,13 @@ def markdown_to_confluence(markdown_text):
             html_parts.append(html)
             continue
 
+        # Checkboxes before bullets — `- [x]` matches both patterns
+        checkbox = _convert_checkbox(line)
+        if checkbox:
+            html_parts.append(checkbox)
+            i += 1
+            continue
+
         if _BULLET_RE.match(line):
             html, i = _convert_list_block(lines, i, _BULLET_RE, "ul")
             html_parts.append(html)
@@ -231,12 +238,6 @@ def markdown_to_confluence(markdown_text):
         heading = _convert_heading(line)
         if heading:
             html_parts.append(heading)
-            i += 1
-            continue
-
-        checkbox = _convert_checkbox(line)
-        if checkbox:
-            html_parts.append(checkbox)
             i += 1
             continue
 
