@@ -24,7 +24,22 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = SCRIPT_DIR.parent
 RUN_STATE_PATH = SCRIPT_DIR / ".run_state.json"
+
+
+def _validate_path(env_value: str, description: str) -> Path:
+    """Resolve a path from an environment variable and ensure no traversal."""
+    resolved = Path(env_value).resolve()
+    # Must stay within the project root
+    try:
+        resolved.relative_to(PROJECT_ROOT)
+    except ValueError:
+        raise ValueError(
+            f"{description} resolves to {resolved}, "
+            f"which is outside the project root ({PROJECT_ROOT})"
+        )
+    return resolved
 
 
 # ---------------------------------------------------------------------------
@@ -44,8 +59,10 @@ def find_python():
     """
     # 1. Environment variable
     env_python = os.environ.get("PAC_PYTHON")
-    if env_python and shutil.which(env_python):
-        return env_python
+    if env_python:
+        resolved = Path(env_python).resolve()
+        if shutil.which(str(resolved)):
+            return str(resolved)
 
     # 2. Local venv
     venv_python = SCRIPT_DIR / "venv" / "bin" / "python"
@@ -223,7 +240,7 @@ def append_archive_log(mode, results):
     if not log_path:
         return
 
-    path = Path(log_path)
+    path = _validate_path(log_path, "PAC_ARCHIVE_LOG")
     path.parent.mkdir(parents=True, exist_ok=True)
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
