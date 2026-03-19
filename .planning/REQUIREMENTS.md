@@ -1,7 +1,7 @@
 # Requirements: Palimpsest
 
 **Defined:** 2026-03-19
-**Core Value:** One command gives you a working AI-powered project management companion — versioned, updatable, with methodology and tooling that just works.
+**Core Value:** One command gives you a working AI-powered project management companion -- versioned, updatable, with methodology and tooling that just works.
 
 ## v1.0 Requirements
 
@@ -21,7 +21,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **INIT-01**: User can run `palimpsest init` to scaffold a project (replaces setup.sh)
 - [ ] **INIT-02**: Init auto-detects which AI editors are present in the project/system
 - [ ] **INIT-03**: Init installs correct agent config format for each detected editor (Cursor, Claude Code, Cline)
-- [ ] **INIT-04**: Init is idempotent — running twice does not corrupt the project
+- [ ] **INIT-04**: Init is idempotent -- running twice does not corrupt the project
 - [ ] **INIT-05**: User can override detection with `--editors cursor,claude-code` flag
 - [ ] **INIT-06**: Init initializes Memory Bank protocol files for detected editors
 - [ ] **INIT-07**: Init creates file manifest (`.palimpsest/manifest.json`) tracking installed files + checksums
@@ -33,7 +33,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **CONT-03**: User can access playbooks with `palimpsest playbook <name>`
 - [ ] **CONT-04**: Anechoic async methodology ships as bundled content under its own brand
 - [ ] **CONT-05**: User can access anechoic content via `palimpsest anechoic` command
-- [ ] **CONT-06**: Anechoic version is pinned and tracked — updates flow with palimpsest releases
+- [ ] **CONT-06**: Anechoic version is pinned and tracked -- updates flow with palimpsest releases
 
 ### Update & Maintenance
 
@@ -65,7 +65,7 @@ Deferred to next milestone. Tracked but not in current roadmap.
 
 - **SYNC-01**: User can export palimpsest setup as shareable snapshot (minus private folder)
 - **SYNC-02**: User can import another user's exported snapshot to bootstrap their setup
-- **SYNC-03**: Export includes manifest of private folder structure (categories, templates — not content)
+- **SYNC-03**: Export includes manifest of private folder structure (categories, templates -- not content)
 - **SYNC-04**: Committed repo artifact enables team members to get up to speed instantly
 - **SYNC-05**: Init wizard offers solo mode vs team sync mode
 
@@ -82,7 +82,7 @@ Deferred to next milestone. Tracked but not in current roadmap.
 | MCP server for live LLM integration | Interesting but separate project, not v1 |
 | SaaS/hosted version | Local-first, open-source tool |
 | Custom AI model training | Uses existing AI editors as-is |
-| Plugin/extension system | Premature — editor config formats still evolving |
+| Plugin/extension system | Premature -- editor config formats still evolving |
 | Auto-updating (background) | Hostile UX for a tool that modifies project files |
 | Windows support | macOS/Linux first; add based on demand |
 | Real-time editor sync | File-system consistency is sufficient |
@@ -95,41 +95,41 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLI-01 | — | Pending |
-| CLI-02 | — | Pending |
-| CLI-03 | — | Pending |
-| CLI-04 | — | Pending |
-| CLI-05 | — | Pending |
-| CLI-06 | — | Pending |
-| INIT-01 | — | Pending |
-| INIT-02 | — | Pending |
-| INIT-03 | — | Pending |
-| INIT-04 | — | Pending |
-| INIT-05 | — | Pending |
-| INIT-06 | — | Pending |
-| INIT-07 | — | Pending |
-| CONT-01 | — | Pending |
-| CONT-02 | — | Pending |
-| CONT-03 | — | Pending |
-| CONT-04 | — | Pending |
-| CONT-05 | — | Pending |
-| CONT-06 | — | Pending |
-| UPD-01 | — | Pending |
-| UPD-02 | — | Pending |
-| UPD-03 | — | Pending |
-| SETUP-01 | — | Pending |
-| SETUP-02 | — | Pending |
-| SETUP-03 | — | Pending |
-| DIST-01 | — | Pending |
-| DIST-02 | — | Pending |
-| DIAG-01 | — | Pending |
-| DIAG-02 | — | Pending |
+| CLI-01 | Phase 1 | Pending |
+| CLI-02 | Phase 1 | Pending |
+| CLI-03 | Phase 1 | Pending |
+| CLI-04 | Phase 1 | Pending |
+| CLI-05 | Phase 1 | Pending |
+| CLI-06 | Phase 2 | Pending |
+| INIT-01 | Phase 2 | Pending |
+| INIT-02 | Phase 2 | Pending |
+| INIT-03 | Phase 2 | Pending |
+| INIT-04 | Phase 2 | Pending |
+| INIT-05 | Phase 2 | Pending |
+| INIT-06 | Phase 2 | Pending |
+| INIT-07 | Phase 2 | Pending |
+| CONT-01 | Phase 3 | Pending |
+| CONT-02 | Phase 3 | Pending |
+| CONT-03 | Phase 3 | Pending |
+| CONT-04 | Phase 3 | Pending |
+| CONT-05 | Phase 3 | Pending |
+| CONT-06 | Phase 3 | Pending |
+| UPD-01 | Phase 4 | Pending |
+| UPD-02 | Phase 4 | Pending |
+| UPD-03 | Phase 4 | Pending |
+| SETUP-01 | Phase 4 | Pending |
+| SETUP-02 | Phase 4 | Pending |
+| SETUP-03 | Phase 4 | Pending |
+| DIST-01 | Phase 5 | Pending |
+| DIST-02 | Phase 1 | Pending |
+| DIAG-01 | Phase 3 | Pending |
+| DIAG-02 | Phase 3 | Pending |
 
 **Coverage:**
 - v1.0 requirements: 29 total
-- Mapped to phases: 0
-- Unmapped: 29 ⚠️
+- Mapped to phases: 29
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-19*
-*Last updated: 2026-03-19 after initial definition*
+*Last updated: 2026-03-19 after roadmap creation*
