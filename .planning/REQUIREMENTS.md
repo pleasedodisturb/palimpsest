@@ -9,7 +9,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### CLI Foundation
 
-- [ ] **CLI-01**: User can install palimpsest with a single command (`pip install` / `pipx install` / `uv tool install`)
+- [x] **CLI-01**: User can install palimpsest with a single command (`pip install` / `pipx install` / `uv tool install`)
 - [ ] **CLI-02**: Every command and subcommand responds to `--help` with usage info
 - [ ] **CLI-03**: User can check installed version with `palimpsest --version`
 - [ ] **CLI-04**: CLI displays colored terminal output with rich formatting
@@ -50,7 +50,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Distribution
 
 - [ ] **DIST-01**: Palimpsest is available via Homebrew (`brew install palimpsest` via custom tap)
-- [ ] **DIST-02**: All methodology docs, templates, configs, playbooks, and anechoic content ship as package data
+- [x] **DIST-02**: All methodology docs, templates, configs, playbooks, and anechoic content ship as package data
 
 ### Health & Diagnostics
 
@@ -95,7 +95,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CLI-01 | Phase 1 | Pending |
+| CLI-01 | Phase 1 | Complete |
 | CLI-02 | Phase 1 | Pending |
 | CLI-03 | Phase 1 | Pending |
 | CLI-04 | Phase 1 | Pending |
@@ -121,7 +121,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SETUP-02 | Phase 4 | Pending |
 | SETUP-03 | Phase 4 | Pending |
 | DIST-01 | Phase 5 | Pending |
-| DIST-02 | Phase 1 | Pending |
+| DIST-02 | Phase 1 | Complete |
 | DIAG-01 | Phase 3 | Pending |
 | DIAG-02 | Phase 3 | Pending |
 
