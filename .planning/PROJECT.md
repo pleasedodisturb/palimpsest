@@ -84,5 +84,17 @@ The codebase has 30+ environment variables, 8 JSON config files, and 13 test fil
 | Update command with user-patch preservation | Templates will be customized; updates must not destroy user work | — Pending |
 | Ship methodology as package data, not separate docs site | "One command, full TPM" means everything in one artifact | — Pending |
 
+## Current Milestone: v1.0 Packaged AI-TPM Blueprint
+
+**Goal:** Package palimpsest from a loose repo into a single-command installable AI-TPM toolkit with runtime editor detection, guided setup, and versioned updates.
+
+**Target features:**
+- Single-command install that drops full AI-TPM into any project
+- Runtime detection of AI editors and correct config format installation
+- Interactive guided setup after install
+- Versioned releases with semantic versioning and update command
+- All content shipped as package data
+- Python automation scripts as optional extras
+
 ---
-*Last updated: 2026-03-17 after initialization*
+*Last updated: 2026-03-19 after milestone v1.0 start*
