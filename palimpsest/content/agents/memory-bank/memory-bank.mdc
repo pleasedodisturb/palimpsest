@@ -1,0 +1,173 @@
+---
+description: Memory Bank protocol — persistent shared state for AI agent sessions. Ensures no context is lost between sessions or across agents.
+alwaysApply: true
+---
+
+# Memory Bank Protocol
+
+## Purpose
+
+Every AI agent session is stateless by default. The Memory Bank fixes this. It is a set of markdown files that persist program context across sessions, across agents, and across time.
+
+**Core rule: No chat should ever be forgotten. Blank slate chats are forbidden.**
+
+## Session Start — Read and Register
+
+Before doing ANY work, read these files in order:
+
+1. `$PROJECT_ROOT/.cursor/memory/sessionLog.md` — all prior sessions
+2. `$PROJECT_ROOT/.cursor/memory/activeContext.md` — current focus and open questions
+3. `$PROJECT_ROOT/.cursor/memory/progress.md` — milestones and recent completions
+4. Scan `decisionLog.md`, `systemPatterns.md`, `productContext.md`, `projectPreferences.md` if relevant to the task
+
+Then register your session in `sessionLog.md`:
+
+```markdown
+## Active Sessions
+
+### Session [YYYY-MM-DD-HH:MM] — [Agent Name]
+- **Focus**: [What this session will work on]
+- **Started**: [Timestamp]
+```
+
+## During Session — Checkpoints and File Mapping
+
+Update Memory Bank files at natural checkpoints. Target: every 10-15 minutes of active work.
+
+Use this mapping to decide which file to update:
+
+| Event | File to Update |
+|-------|---------------|
+| Significant decision made | `decisionLog.md` |
+| Architecture or pattern established | `systemPatterns.md` |
+| Work item completed | `progress.md` |
+| Focus shifted or new questions arose | `activeContext.md` |
+| Project scope or goals changed | `productContext.md` |
+| Team preference or workflow changed | `projectPreferences.md` |
+| Any of the above | `sessionLog.md` (add note to active session) |
+
+### Entry Format
+
+All Memory Bank entries should include:
+- **Date**: ISO format (YYYY-MM-DD)
+- **Context**: What was happening, why this matters
+- **Details**: The actual content (decision, pattern, milestone, etc.)
+
+Example for `decisionLog.md`:
+```markdown
+### [YYYY-MM-DD] — [Decision Title]
+- **Context**: [Why this decision was needed]
+- **Alternatives considered**: [What else was on the table]
+- **Decision**: [What was decided]
+- **Rationale**: [Why this option won]
+```
+
+## Git Commit Protocol
+
+### When to Commit
+
+- After completing a logical unit of work
+- After updating Memory Bank files at a checkpoint
+- Before switching context or ending the session
+- Every 15-20 minutes of active work (at minimum)
+
+### Commit Message Format
+
+```
+type: short description
+```
+
+Types:
+- `docs` — documentation changes
+- `feat` — new feature or capability
+- `fix` — bug fix
+- `chore` — maintenance, cleanup, config
+- `script` — automation scripts
+- `memory` — Memory Bank updates only
+- `wip` — work in progress (use sparingly)
+
+Examples:
+```
+docs: add stakeholder map to program overview
+feat: add calendar sync script
+fix: correct date parsing in daily digest builder
+memory: update active context and session log
+chore: clean up gitignore entries
+```
+
+### Push Rhythm
+
+- **Mandatory**: Push at session end
+- **Recommended**: Push every 3-5 commits
+- **Rule**: Never force push. If push fails, pull with `--no-rebase` then push again.
+
+## Session End — Update, Commit, Push
+
+Before ending a session:
+
+1. Update `activeContext.md` with:
+   - What was accomplished
+   - Current state of in-progress work
+   - Open questions or blockers
+   - What the next session should focus on
+
+2. Update `progress.md` if any milestones moved
+
+3. Move your session entry from Active to History in `sessionLog.md`:
+```markdown
+## Session History
+
+### Session [YYYY-MM-DD-HH:MM] — [Agent Name]
+- **Focus**: [What this session worked on]
+- **Duration**: [Start] - [End]
+- **Outcome**: [What was accomplished]
+- **Key artifacts**: [Files created or modified]
+```
+
+4. Commit all changes: `memory: update session log and active context`
+5. Push to remote
+
+## Memory Bank File Structure
+
+| File | Purpose | Required Every Session |
+|------|---------|----------------------|
+| `sessionLog.md` | Session registry — who, when, what | Yes |
+| `activeContext.md` | Current focus, recent events, open questions | Yes |
+| `progress.md` | Milestones, completions, next steps | When work completes |
+| `decisionLog.md` | Decisions with context and rationale | When decisions are made |
+| `systemPatterns.md` | Architecture and integration patterns | When patterns change |
+| `productContext.md` | Project overview, goals, stakeholders | Rarely |
+| `projectPreferences.md` | Communication, tools, workflow norms | Rarely |
+
+## Cross-Agent Awareness
+
+Multiple agents may work on the same project. The Memory Bank is the coordination mechanism.
+
+- Always check `sessionLog.md` for recent sessions by other agents
+- If another agent left open questions in `activeContext.md`, address them if relevant
+- Never overwrite another agent's session history — append only
+- Use the session log to understand the full timeline of work, not just your own
+
+## Recovery from Interruption
+
+If a session was interrupted (crash, timeout, user disconnect):
+
+1. On the next session start, check `sessionLog.md` for an active session with no end time
+2. Read `activeContext.md` to understand where things were left
+3. Continue the work or close out the interrupted session before starting new work
+4. Add a note: `- **Note**: Recovered from interrupted session [reference]`
+
+---
+
+**Checkpoint Rhythm**
+
+```
+[10-15 min] ──> Update Memory Bank files
+[15-20 min] ──> Git commit
+[3-5 commits] ──> Git push
+[Session end] ──> Full update + commit + push (mandatory)
+```
+
+---
+
+**Enforcement**: This protocol is not optional. Agents that skip Memory Bank reads produce redundant work. Agents that skip Memory Bank writes lose institutional knowledge. Both waste the user's time. Follow the protocol every session, every time.
