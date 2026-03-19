@@ -10,10 +10,10 @@ Requirements for initial release. Each maps to roadmap phases.
 ### CLI Foundation
 
 - [x] **CLI-01**: User can install palimpsest with a single command (`pip install` / `pipx install` / `uv tool install`)
-- [ ] **CLI-02**: Every command and subcommand responds to `--help` with usage info
-- [ ] **CLI-03**: User can check installed version with `palimpsest --version`
-- [ ] **CLI-04**: CLI displays colored terminal output with rich formatting
-- [ ] **CLI-05**: CLI shows meaningful error messages (no raw tracebacks for user errors)
+- [x] **CLI-02**: Every command and subcommand responds to `--help` with usage info
+- [x] **CLI-03**: User can check installed version with `palimpsest --version`
+- [x] **CLI-04**: CLI displays colored terminal output with rich formatting
+- [x] **CLI-05**: CLI shows meaningful error messages (no raw tracebacks for user errors)
 - [ ] **CLI-06**: Write operations support `--dry-run` to preview changes
 
 ### Project Scaffolding
@@ -96,10 +96,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | CLI-01 | Phase 1 | Complete |
-| CLI-02 | Phase 1 | Pending |
-| CLI-03 | Phase 1 | Pending |
-| CLI-04 | Phase 1 | Pending |
-| CLI-05 | Phase 1 | Pending |
+| CLI-02 | Phase 1 | Complete |
+| CLI-03 | Phase 1 | Complete |
+| CLI-04 | Phase 1 | Complete |
+| CLI-05 | Phase 1 | Complete |
 | CLI-06 | Phase 2 | Pending |
 | INIT-01 | Phase 2 | Pending |
 | INIT-02 | Phase 2 | Pending |
