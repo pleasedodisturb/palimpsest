@@ -25,6 +25,8 @@ classifiers = [
 ]
 
 dependencies = [
+    "typer>=0.24.0",
+    "rich>=14.0.0",
     "google-api-python-client>=2.100.0",
     "google-auth-httplib2>=0.1.1",
     "google-auth-oauthlib>=1.1.0",
@@ -40,7 +42,9 @@ dev = [
 ]
 
 [project.scripts]
-pac = "scripts.core.preflight_check:main"
+pal = "palimpsest.cli.main:run"
+palimpsest = "palimpsest.cli.main:run"
+pac = "palimpsest.cli.main:run"
 
 [project.urls]
 Homepage = "https://github.com/pleasedodisturb/palimpsest"
@@ -49,8 +53,16 @@ Repository = "https://github.com/pleasedodisturb/palimpsest"
 Issues = "https://github.com/pleasedodisturb/palimpsest/issues"
 
 [tool.setuptools.packages.find]
-include = ["scripts*"]
+include = ["palimpsest*", "scripts*"]
+
+[tool.setuptools.package-data]
+"palimpsest.content" = [
+    "**/*.md",
+    "**/*.template",
+    "**/*.mdc",
+    "**/*.json",
+]
 
 [tool.pytest.ini_options]
-testpaths = ["scripts/tests"]
+testpaths = ["tests", "scripts/tests"]
 pythonpath = ["scripts"]
