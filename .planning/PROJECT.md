@@ -2,13 +2,13 @@
 
 ## What This Is
 
-An open-source blueprint that lets anyone summon a full AI-powered Technical Program Manager into any project with a single command. Today palimpsest is a loose collection of methodology docs, agent configs, Python scripts, templates, and playbooks scattered across a git repo. The goal is to package all of this into a versioned, installable artifact — one command drops the full AI-TPM capability into a project, then an interactive guided setup helps configure the program context.
+An open-source toolkit that lets anyone summon AI-powered project management into any project with a single command. Today palimpsest is a loose collection of methodology docs, agent configs, Python scripts, templates, and playbooks scattered across a git repo. The goal is to package all of this into a versioned, installable artifact — one command drops the full capability into a project, then an interactive guided setup helps configure the program context.
 
-The target audience is both TPMs who use AI editors and developers building TPM tooling. It should work across Claude Code, Cursor, Cline, Codex, Goose, and Kilo.
+The target audience is anyone running something that looks like a modern tech program — developers, product managers, ops leads, founders, team leads — especially if they already use services like Jira, Confluence, Slack, or GitHub. The AI editor becomes their project management co-pilot. It should work across Claude Code, Cursor, Cline, Codex, Goose, and Kilo.
 
 ## Core Value
 
-One command gives you a working AI-TPM in any project — versioned, updatable, with methodology and tooling that just works.
+One command gives you AI-powered project management in any project — versioned, updatable, with methodology and tooling that just works.
 
 ## Requirements
 
