@@ -30,11 +30,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Running `pac --help` and `pac <subcommand> --help` display usage info for all registered commands
   4. CLI output uses colored, rich-formatted text (not raw print statements)
   5. User errors produce meaningful messages, not Python tracebacks
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md — Package restructure, content bundling, pyproject.toml entry points
+- [ ] 01-02-PLAN.md — Typer CLI with Rich output, error handling, and test suite
 
 ### Phase 2: Init & Editor Detection
 **Goal**: Users can run `pac init` in any project to get full AI-TPM scaffolding with correct editor configs for their detected environment
@@ -102,7 +102,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Package Foundation | 0/? | Not started | - |
+| 1. Package Foundation | 0/2 | Planning complete | - |
 | 2. Init & Editor Detection | 0/? | Not started | - |
 | 3. Content Access & Diagnostics | 0/? | Not started | - |
 | 4. Update System & Guided Setup | 0/? | Not started | - |
