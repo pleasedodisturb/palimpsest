@@ -2,6 +2,8 @@
 
 This is the `palimpsest` repository — an open-source framework for AI-augmented Technical Program Management.
 
+This file does not restate global rules — read `~/.claude/CLAUDE.md` first.
+
 ## Repo Structure
 
 | Directory | Purpose |
